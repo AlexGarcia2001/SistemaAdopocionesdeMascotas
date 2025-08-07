@@ -1,0 +1,30 @@
+# .htaccess en /adopciones-api/
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # RewriteBase /adopciones-api/ # <--- ¡ESTA LÍNEA HA SIDO ELIMINADA!
+
+    # Esta línea es la CLAVE: Asegura que el encabezado X-HTTP-Method-Override sea visible para PHP.
+    SetEnvIfNoCase X-HTTP-Method-Override "^(.*)$" HTTP_X_HTTP_METHOD_OVERRIDE=$1
+
+    # También pasamos Authorization, por si acaso lo necesitas más adelante (para JWT, etc.)
+    SetEnvIfNoCase Authorization "^(.*)$" HTTP_AUTHORIZATION=$1
+
+    # NUEVA REGLA CRUCIAL: Servir archivos estáticos del frontend directamente
+    # Si la solicitud es para un archivo o directorio existente dentro de public/frontend/, servirlo directamente.
+    # Esto evita que las solicitudes al frontend sean redirigidas a public/index.php (tu API).
+    # La bandera [L] (Last) es vital para que no se procesen más reglas para estas solicitudes.
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^public/frontend/(.*)$ public/frontend/$1 [L]
+
+    # Regla existente: Redirige cualquier solicitud que no sea un archivo o directorio existente
+    # (y que no fue manejada por la regla anterior del frontend)
+    # para que sea manejada por public/index.php (tu API).
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ public/index.php [QSA,L]
+</IfModule>
+
+# Desactivar listado de directorios
+Options -Indexes
