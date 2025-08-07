@@ -1,0 +1,89 @@
+<!-- PROMPT: Modificar el formulario de inicio de sesión (login.html) para integrar la validación de formularios
+             utilizando el módulo FormValidator. Se deben validar los campos 'username' y 'password' como obligatorios.
+             Además, el campo 'username' debe validar el formato de correo electrónico.
+             También se debe añadir el manejo del envío del formulario (submit) llamando a AuthService.
+-->
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <h2 class="text-center mb-4" data-lang-key="loginTitle">Iniciar Sesión</h2>
+        <form id="loginForm" novalidate> <!-- Añadir novalidate para deshabilitar la validación HTML5 por defecto -->
+            <div class="mb-3">
+                <label for="loginUsername" class="form-label visually-hidden" data-lang-key="loginUsernamePlaceholder">Usuario</label>
+                <input type="text" class="form-control" id="loginUsername" name="username" placeholder="Usuario" data-lang-key="loginUsernamePlaceholder" required>
+                <div class="invalid-feedback" id="loginUsernameFeedback"></div>
+            </div>
+            <div class="mb-3">
+                <label for="loginPassword" class="form-label visually-hidden" data-lang-key="loginPasswordPlaceholder">Contraseña</label>
+                <input type="password" class="form-control" id="loginPassword" name="password" placeholder="Contraseña" data-lang-key="loginPasswordPlaceholder" required>
+                <div class="invalid-feedback" id="loginPasswordFeedback"></div>
+            </div>
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary btn-lg" data-lang-key="loginSubmitButton">Entrar</button>
+            </div>
+            <p class="text-center mt-3">
+                <a href="#" id="showRegisterForm" data-lang-key="loginRegisterLink">¿No tienes cuenta? Regístrate aquí.</a>
+            </p>
+        </form>
+    </div>
+</div>
+
+<script>
+    // PROMPT: Modificar el script de login.html para ejecutar la lógica directamente
+    //         sin $(document).ready() para asegurar que los listeners se adjunten
+    //         correctamente cuando el componente se carga dinámicamente.
+    //         Debe llamar a AuthService.loginUser para la autenticación real.
+
+    // Asegurarse de que las traducciones se apliquen cuando el componente se carga
+    applyTranslations();
+
+    // Manejar clic en el enlace para mostrar el formulario de registro
+    $('#showRegisterForm').on('click', function(e) {
+        e.preventDefault();
+        window.loadComponent('register');
+    });
+
+    // Manejar el envío del formulario de login
+    $('#loginForm').on('submit', async function(e) { // AHORA ES ASYNC
+        e.preventDefault();
+        
+        let isValid = true; // Bandera de validación
+
+        const $usernameField = $('#loginUsername');
+        const $passwordField = $('#loginPassword');
+
+        // Validar campos obligatorios
+        isValid = window.FormValidator.validateRequired($usernameField) && isValid;
+        isValid = window.FormValidator.validateRequired($passwordField) && isValid;
+
+        // Validar formato de email para el campo de usuario (solo si el campo requerido ya es válido)
+        if (isValid && $usernameField.val().trim() !== '') { 
+            isValid = window.FormValidator.validateEmail($usernameField) && isValid;
+        }
+
+        if (isValid) {
+            const username = $usernameField.val();
+            const password = $passwordField.val();
+            
+            // Llamar a la función de login de AuthService
+            await window.AuthService.loginUser(username, password); 
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: translations[currentLanguage].generalError,
+                text: translations[currentLanguage].formCorrectionError 
+            });
+        }
+    });
+
+    // Opcional: Validar al perder el foco (blur) en los campos
+    $('#loginUsername').on('blur', function() {
+        window.FormValidator.validateRequired($(this));
+        // También validar email al perder el foco, solo si el campo no está vacío
+        if ($(this).val().trim() !== '') { 
+            window.FormValidator.validateEmail($(this));
+        }
+    });
+    $('#loginPassword').on('blur', function() {
+        window.FormValidator.validateRequired($(this));
+    });
+</script>
