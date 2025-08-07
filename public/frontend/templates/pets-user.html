@@ -1,0 +1,346 @@
+<!-- public/frontend/templates/pets-user.html -->
+<div class="row justify-content-center">
+    <div class="col-md-12 col-lg-10">
+        <h2 class="text-center mb-4" data-lang-key="availablePetsTitle">Mascotas Disponibles para Adopción</h2>
+        
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <button id="backToUserDashboardBtn" class="btn btn-secondary btn-sm" data-lang-key="backToDashboard">Volver al Panel</button>
+            <!-- No hay botón de añadir para usuarios -->
+        </div>
+
+        <div class="mb-3">
+            <input type="text" id="petSearchInput" class="form-control" placeholder="Buscar por nombre o especie..." data-lang-key="searchPlaceholder">
+        </div>
+
+        <div class="alert alert-info text-center" role="alert" id="loadingMessage" data-lang-key="loadingPets">Cargando mascotas...</div>
+        <div class="alert alert-danger text-center" role="alert" id="errorMessage" style="display: none;" data-lang-key="errorLoadingPets">Error al cargar las mascotas.</div>
+        <div class="alert alert-warning text-center" role="alert" id="noDataMessage" style="display: none;" data-lang-key="noPetsFound">No se encontraron mascotas disponibles.</div>
+
+        <div id="petsContainer" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+            <!-- Las tarjetas de mascotas se cargarán aquí dinámicamente -->
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Ver Detalles de la Mascota (AHORA ES EXCLUSIVO DE ESTE ARCHIVO) -->
+<div class="modal fade" id="viewPetDetailsModal" tabindex="-1" aria-labelledby="viewPetDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewPetDetailsModalLabel" data-lang-key="petDetailsTitle">Detalles de la Mascota</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6 text-center">
+                        <img id="detailPetPhoto" src="https://placehold.co/400x300/e0e0e0/000000?text=Imagen+No+Disponible" class="img-fluid rounded shadow-sm mb-3" alt="Foto de Mascota">
+                    </div>
+                    <div class="col-md-6">
+                        <!-- NOTA: El dos puntos (:) debe venir de lang.js si se desea. El HTML no lo añade. -->
+                        <p><strong><span data-lang-key="petNameLabel">Nombre</span></strong> <span id="detailPetName"></span></p>
+                        <p><strong><span data-lang-key="speciesLabel">Especie</span></strong> <span id="detailPetSpecies"></span></p>
+                        <p><strong><span data-lang-key="breedLabel">Raza</span></strong> <span id="detailPetBreed"></span></p>
+                        <p><strong><span data-lang-key="ageLabel">Edad</span></strong> <span id="detailPetAge"></span> <span data-lang-key="yearsLabel">años</span></p>
+                        <p><strong><span data-lang-key="sexLabel">Sexo</span></strong> <span id="detailPetSex"></span></p>
+                        <p><strong><span data-lang-key="sizeLabel">Tamaño</span></strong> <span id="detailPetSize"></span></p>
+                        <p><strong><span data-lang-key="descriptionLabel">Descripción</span></strong> <span id="detailPetDescription"></span></p>
+                        <p><strong><span data-lang-key="rescueDateLabel">Fecha de Rescate</span></strong> <span id="detailPetRescueDate"></span></p>
+                        <p><strong><span data-lang-key="adoptionStatusLabel">Estado de Adopción</span></strong> <span id="detailPetAdoptionStatus"></span></p>
+                        <p><strong><span data-lang-key="statusLabel">Estado (Registro)</span></strong> <span id="detailPetStatus"></span></p>
+                        <p><strong><span data-lang-key="registeredByLabel">Registrado por (ID Usuario)</span></strong> <span id="detailPetUserId"></span></p>
+                        <p><strong><span data-lang-key="shelterIdLabel">ID Refugio</span></strong> <span id="detailPetRefugeId"></span></p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-success me-2" id="adoptPetFromDetailsBtn" data-lang-key="adoptButton">Adoptar</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-lang-key="closeButton">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        let isPetsUserScriptInitialized = false;
+        let allPets = []; // Para almacenar todas las mascotas y permitir el filtrado
+        let currentPetIdForDetails = null; // Para guardar el ID de la mascota que se está viendo en el modal
+        let viewPetDetailsModalInstance = null; // Para almacenar la instancia del modal
+
+        function initializePetsUserScript() {
+            // Desactivar cualquier listener de clic previo para los botones de detalles y adoptar en el documento.
+            // Esto es CRÍTICO para evitar duplicaciones de eventos entre componentes.
+            // Usamos un namespace específico para este componente para evitar conflictos.
+            $(document).off('click.petsUserBack'); // Desactivar el listener del botón Volver al Panel
+            $(document).off('keyup.petsUserSearch'); // Desactivar el listener de búsqueda
+            $(document).off('click.petsUserViewDetails'); // Desactivar el listener del botón Ver Detalles
+            $(document).off('click.adoptPetFromDetails'); // Desactivar el listener del botón Adoptar
+            console.log("DEBUG pets-user.html: Todos los listeners de clic específicos de este componente han sido desactivados.");
+
+            if (isPetsUserScriptInitialized) {
+                console.log("DEBUG pets-user.html: Script ya inicializado, recargando datos.");
+                loadPets();
+                return;
+            }
+
+            isPetsUserScriptInitialized = true;
+            console.log("DEBUG pets-user.html: Iniciando carga del script de pets-user y esperando al DOM.");
+            applyTranslations(); // Asegúrate de que esta función esté definida y cargada
+
+            const loadingMessage = $('#loadingMessage');
+            const errorMessage = $('#errorMessage');
+            const noDataMessage = $('#noDataMessage');
+            const petsContainer = $('#petsContainer');
+            const petSearchInput = $('#petSearchInput');
+            const viewPetDetailsModalElement = document.getElementById('viewPetDetailsModal');
+            viewPetDetailsModalInstance = new bootstrap.Modal(viewPetDetailsModalElement); // Instancia del modal
+
+            // Función para cargar las mascotas y llenar la cuadrícula
+            async function loadPets() {
+                console.log("DEBUG pets-user.html: Cargando mascotas...");
+                loadingMessage.show();
+                errorMessage.hide();
+                noDataMessage.hide();
+                petsContainer.empty();
+
+                if (typeof window.ApiService === 'undefined') {
+                    console.error("ERROR pets-user.html: ApiService no está definido. Asegúrate de que los scripts de utilidades se carguen primero.");
+                    errorMessage.show().text(translations[currentLanguage].errorLoadingPets || 'Error al cargar las mascotas.');
+                    loadingMessage.hide();
+                    return;
+                }
+
+                try {
+                    const response = await window.ApiService.get('/mascotas', false); 
+                    console.log("DEBUG pets-user.html: Respuesta de API para mascotas:", response);
+
+                    loadingMessage.hide();
+
+                    if ((response.status === 'success' || response.status === 'éxito') && Array.isArray(response.data) && response.data.length > 0) {
+                        allPets = response.data.filter(mascota => mascota.estado === 'activo');
+                        
+                        if (allPets.length > 0) {
+                            renderPets(allPets);
+                        } else {
+                            noDataMessage.show();
+                        }
+                    } else {
+                        noDataMessage.show();
+                    }
+                } catch (error) {
+                    console.error("ERROR pets-user.html: Fallo al cargar mascotas:", error);
+                    errorMessage.show().text(translations[currentLanguage].errorLoadingPets || 'Error al cargar las mascotas.');
+                }
+            }
+
+            // Función para renderizar las mascotas en la cuadrícula
+            function renderPets(petsToRender) {
+                petsContainer.empty();
+                if (petsToRender.length === 0) {
+                    noDataMessage.show();
+                    return;
+                } else {
+                    noDataMessage.hide();
+                }
+
+                petsToRender.forEach(mascota => {
+                    const imageUrl = mascota.foto_url || 'https://placehold.co/400x300/cccccc/333333?text=Sin+Imagen';
+                    const card = `
+                        <div class="col">
+                            <div class="card h-100 shadow-sm rounded-3">
+                                <img src="${imageUrl}" class="card-img-top rounded-top-3" alt="Foto de ${mascota.nombre}" style="height: 200px; object-fit: cover;">
+                                <div class="card-body d-flex flex-column">
+                                    <h5 class="card-title">${mascota.nombre}</h5>
+                                    <p class="card-text mb-1"><strong>${translations[currentLanguage].speciesLabel || 'Especie'}:</strong> ${mascota.especie}</p>
+                                    <p class="card-text mb-1"><strong>${translations[currentLanguage].breedLabel || 'Raza'}:</strong> ${mascota.raza || 'N/A'}</p>
+                                    <p class="card-text mb-1"><strong>${translations[currentLanguage].ageLabel || 'Edad'}:</strong> ${mascota.edad || 'N/A'}</p>
+                                    <p class="card-text flex-grow-1">${mascota.descripcion || 'Sin descripción.'}</p>
+                                    <div class="mt-auto">
+                                        <button class="btn btn-primary btn-sm view-pet-details-btn" data-id="${mascota.id_mascota}" data-lang-key="viewDetailsButton">Ver Detalles</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    petsContainer.append(card);
+                });
+            }
+
+            // --- Event Listeners ---
+
+            // Botón "Volver al Panel"
+            $(document).on('click.petsUserBack', '#backToUserDashboardBtn', function() {
+                window.loadComponent('dashboard-user');
+            });
+
+            // Búsqueda en tiempo real
+            petSearchInput.on('keyup.petsUserSearch', function() {
+                const searchTerm = $(this).val().toLowerCase();
+                const filteredPets = allPets.filter(mascota => 
+                    mascota.nombre.toLowerCase().includes(searchTerm) || 
+                    mascota.especie.toLowerCase().includes(searchTerm) ||
+                    (mascota.raza && mascota.raza.toLowerCase().includes(searchTerm))
+                );
+                renderPets(filteredPets);
+            });
+
+            // Manejador para el botón "Ver Detalles" (AHORA ES ESPECÍFICO DE ESTE ARCHIVO Y SE AUTOCONTROLA)
+            $(document).on('click.petsUserViewDetails', '.view-pet-details-btn', async function() {
+                // Solo procesar el clic si este script está activo (bandera de inicialización)
+                if (!isPetsUserScriptInitialized) {
+                    console.warn("WARN pets-user.html: Clic en 'Ver Detalles' ignorado, el script no está activo.");
+                    return;
+                }
+
+                const petId = $(this).data('id');
+                console.log(`DEBUG pets-user.html: Clic en 'Ver Detalles' para Mascota ID: ${petId}`);
+                
+                Swal.fire({
+                    title: translations[currentLanguage].loadingTitle || 'Cargando...',
+                    text: translations[currentLanguage].loadingDetailsText || 'Obteniendo detalles de la mascota...',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                try {
+                    const response = await window.ApiService.get(`/mascotas/${petId}`, false);
+                    console.log('DEBUG pets-user.html: Detalles de mascota recibidos (objeto completo):', response);
+
+                    if (response.status === 'success' || response.status === 'éxito' && response.data) {
+                        const pet = response.data;
+                        const detailImageUrl = pet.foto_url && (pet.foto_url.startsWith('http://') || pet.foto_url.startsWith('https://'))
+                                                         ? pet.foto_url
+                                                         : `https://placehold.co/400x300/e0e0e0/000000?text=${pet.nombre || 'Mascota'}`;
+                        
+                        $('#detailPetPhoto').attr('src', detailImageUrl);
+                        $('#detailPetName').text(pet.nombre || 'N/A');
+                        $('#detailPetSpecies').text(pet.especie || 'N/A');
+                        $('#detailPetBreed').text(pet.raza || 'N/A');
+                        $('#detailPetAge').text(pet.edad || 'N/A');
+                        $('#detailPetSex').text(pet.sexo || 'N/A');
+                        $('#detailPetSize').text(pet.tamano || 'N/A');
+                        $('#detailPetDescription').text(pet.descripcion || 'N/A');
+                        
+                        const rescueDate = pet.fecha_rescate ? new Date(pet.fecha_rescate).toLocaleDateString(currentLanguage, { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
+                        $('#detailPetRescueDate').text(rescueDate);
+
+                        $('#detailPetAdoptionStatus').text(pet.estado_adopcion || 'N/A');
+                        $('#detailPetStatus').text(pet.estado || 'N/A');
+                        $('#detailPetUserId').text(pet.id_usuario || 'N/A');
+                        $('#detailPetRefugeId').text(pet.id_refugio || 'N/A');
+                        
+                        currentPetIdForDetails = pet.id_mascota;
+                        
+                        Swal.close();
+                        viewPetDetailsModalInstance.show(); // Usar la instancia del modal
+                        applyTranslations();
+                        console.log("DEBUG pets-user.html: Modal de detalles de mascota mostrado exitosamente.");
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: translations[currentLanguage].errorTitle || 'Error',
+                            text: response.message || (translations[currentLanguage].errorFetchingDetails || 'Error al obtener los detalles de la mascota.')
+                        });
+                    }
+
+                } catch (error) {
+                    console.error('ERROR pets-user.html: Fallo al obtener detalles de mascota directamente:', error);
+                    let errorMessage = translations[currentLanguage].communicationError || 'Error de comunicación con el servidor.';
+                    if (error.message) { errorMessage = `${translations[currentLanguage].jsError || 'Error JavaScript'}: ${error.message}`; }
+                    
+                    Swal.fire({
+                        icon: 'error',
+                        title: translations[currentLanguage].generalError || 'Error',
+                        text: errorMessage
+                    });
+                }
+            });
+
+            // Manejador para el botón "Adoptar" dentro del modal de detalles
+            $(document).on('click.adoptPetFromDetails', '#adoptPetFromDetailsBtn', function() {
+                // Solo procesar el clic si este script está activo (bandera de inicialización)
+                if (!isPetsUserScriptInitialized) {
+                    console.warn("WARN pets-user.html: Clic en 'Adoptar' ignorado, el script no está activo.");
+                    return;
+                }
+
+                if (currentPetIdForDetails) {
+                    console.log(`DEBUG pets-user.html: Clic en 'Adoptar' para Mascota ID: ${currentPetIdForDetails}. Abriendo formulario de solicitud.`);
+                    viewPetDetailsModalInstance.hide(); // Usar la instancia del modal
+
+                    $('#adoptionApplicationForm')[0].reset();
+                    $('#applicationPetId').val(currentPetIdForDetails); 
+                    const currentUser = window.AuthService.getUserData();
+                    if (currentUser && currentUser.id_usuario) {
+                        $('#applicationUserId').val(currentUser.id_usuario);
+                    } else {
+                        console.error("ERROR pets-user.html: No se pudo obtener el ID de usuario autenticado para la solicitud de adopción.");
+                        Swal.fire({
+                            icon: 'error',
+                            title: translations[currentLanguage].generalError || 'Error',
+                            text: translations[currentLanguage].userNotLoggedIn || 'No se pudo obtener la información del usuario. Por favor, inicia sesión de nuevo.'
+                        });
+                        return;
+                    }
+                    
+                    $('#adoptionApplicationModal').modal('show');
+                    applyTranslations();
+                    console.log("DEBUG pets-user.html: Modal de solicitud de adopción mostrado.");
+                } else {
+                    console.error("ERROR pets-user.html: No se encontró ID de mascota para la solicitud de adopción.");
+                    Swal.fire({
+                        icon: 'error',
+                        title: translations[currentLanguage].generalError || 'Error',
+                        text: translations[currentLanguage].noPetSelected || 'No se ha seleccionado una mascota para adoptar.'
+                    });
+                }
+            });
+
+            // Limpiar el modal de detalles cuando se oculta
+            $(viewPetDetailsModalElement).on('hidden.bs.modal', function () {
+                console.log("DEBUG pets-user.html: Modal de detalles oculto. Limpiando contenido.");
+                $('#detailPetPhoto').attr('src', 'https://placehold.co/400x300/e0e0e0/000000?text=Imagen+No+Disponible');
+                $('#detailPetName').empty();
+                $('#detailPetSpecies').empty();
+                $('#detailPetBreed').empty();
+                $('#detailPetAge').empty();
+                $('#detailPetSex').empty();
+                $('#detailPetSize').empty();
+                $('#detailPetDescription').empty();
+                $('#detailPetRescueDate').empty();
+                $('#detailPetAdoptionStatus').empty();
+                $('#detailPetStatus').empty();
+                $('#detailPetUserId').empty();
+                $('#detailPetRefugeId').empty();
+                currentPetIdForDetails = null;
+            });
+
+            // Carga inicial de datos
+            loadPets();
+
+            // Limpieza al descargar el componente (escucha el evento genérico 'componentUnloaded')
+            $(document).on('componentUnloaded', function(event, unloadedComponentName) {
+                if (unloadedComponentName === 'pets-user') {
+                    console.log("DEBUG pets-user.html: ¡componentUnloaded para pets-user detectado! Limpiando listeners.");
+                    // Desactivar todos los listeners específicos de este componente usando sus namespaces
+                    $(document).off('click.petsUserBack');
+                    $(document).off('keyup.petsUserSearch');
+                    $(document).off('click.petsUserViewDetails'); 
+                    $(document).off('click.adoptPetFromDetails'); 
+                    $(viewPetDetailsModalElement).off('hidden.bs.modal'); // Desactivar el listener de limpieza del modal
+                    isPetsUserScriptInitialized = false; // Resetear la bandera
+                    allPets = [];
+                    currentPetIdForDetails = null;
+                    viewPetDetailsModalInstance = null; // Limpiar la instancia del modal
+                    console.log("DEBUG pets-user.html: Event listeners de pets-user limpiados.");
+                }
+            });
+        }
+
+        $(document).ready(function() {
+            initializePetsUserScript();
+        });
+    })();
+</script>
