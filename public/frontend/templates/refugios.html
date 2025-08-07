@@ -1,0 +1,412 @@
+<!-- public/frontend/templates/refugios.html -->
+
+<div class="row justify-content-center">
+    <div class="col-md-10 col-lg-10">
+        <h2 class="text-center mb-4" data-lang-key="manageSheltersTitle">Gestionar Refugios</h2>
+
+        <!-- Botón Atrás -->
+        <div class="mb-3">
+            <button id="backToDashboardBtn" class="btn btn-secondary" data-lang-key="backButton">Atrás</button>
+        </div>
+
+        <!-- Barra de búsqueda -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <input type="text" class="form-control" id="refugioSearch" placeholder="Buscar refugios..." data-lang-key="searchSheltersPlaceholder">
+            </div>
+        </div>
+
+        <!-- Contenedor para la tabla de refugios -->
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th data-lang-key="shelterId">ID</th>
+                        <th data-lang-key="shelterName">Nombre</th>
+                        <th data-lang-key="shelterCity">Ciudad</th>
+                        <th data-lang-key="shelterPhone">Teléfono</th>
+                        <th data-lang-key="shelterEmail">Email</th>
+                        <th data-lang-key="shelterStatus">Estado</th>
+                        <th data-lang-key="actions">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="refugiosTableBody">
+                    <!-- Las filas de refugios se cargarán aquí dinámicamente -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Botón para Añadir Refugio -->
+        <div class="d-grid gap-2 mt-4">
+            <button id="addRefugioBtn" class="btn btn-success btn-lg" data-lang-key="addShelter">Añadir Refugio</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Añadir/Editar Refugio -->
+<div class="modal fade" id="refugioModal" tabindex="-1" aria-labelledby="refugioModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="refugioModalLabel" data-lang-key="addShelter">Añadir Refugio</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="refugioForm">
+                    <input type="hidden" id="refugioId">
+                    <div class="mb-3">
+                        <label for="refugioNombre" class="form-label" data-lang-key="shelterNameLabel">Nombre:</label>
+                        <input type="text" class="form-control" id="refugioNombre" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="refugioDireccion" class="form-label" data-lang-key="shelterAddressLabel">Dirección:</label>
+                        <input type="text" class="form-control" id="refugioDireccion">
+                    </div>
+                    <div class="mb-3">
+                        <label for="refugioCiudad" class="form-label" data-lang-key="shelterCityLabel">Ciudad:</label>
+                        <input type="text" class="form-control" id="refugioCiudad" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="refugioPais" class="form-label" data-lang-key="shelterCountryLabel">País:</label>
+                        <input type="text" class="form-control" id="refugioPais">
+                    </div>
+                    <div class="mb-3">
+                        <label for="refugioTelefono" class="form-label" data-lang-key="shelterPhoneLabel">Teléfono:</label>
+                        <input type="tel" class="form-control" id="refugioTelefono">
+                    </div>
+                    <div class="mb-3">
+                        <label for="refugioEmail" class="form-label" data-lang-key="shelterEmailLabel">Email:</label>
+                        <input type="email" class="form-control" id="refugioEmail">
+                    </div>
+                    <div class="mb-3">
+                        <label for="refugioLatitud" class="form-label" data-lang-key="shelterLatitudeLabel">Latitud:</label>
+                        <input type="text" class="form-control" id="refugioLatitud">
+                    </div>
+                    <div class="mb-3">
+                        <label for="refugioLongitud" class="form-label" data-lang-key="shelterLongitudeLabel">Longitud:</label>
+                        <input type="text" class="form-control" id="refugioLongitud">
+                    </div>
+                    <div class="mb-3">
+                        <label for="refugioEstado" class="form-label" data-lang-key="shelterStatusLabel">Estado:</label>
+                        <select class="form-select" id="refugioEstado" required>
+                            <option value="activo" data-lang-key="statusActive">Activo</option>
+                            <option value="inactivo" data-lang-key="statusInactive">Inactivo</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary" data-lang-key="saveShelter">Guardar Refugio</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Script para refugios.html
+    $(function() { // Shorthand for $(document).ready()
+        console.log("DEBUG refugios.html: Iniciando carga del script y esperando al DOM.");
+        applyTranslations(); // Aplicar traducciones a los elementos estáticos iniciales
+
+        const refugiosTableBody = $('#refugiosTableBody');
+        let allRefugiosData = []; // Variable para almacenar todos los refugios cargados
+        let isSubmittingRefugio = false; // Bandera para evitar doble submit
+
+        // --- Declaración de Funciones (Orden Importante: Dependencias primero) ---
+
+        // Función para renderizar la tabla de refugios
+        function renderRefugiosTable(refugiosArray) {
+            console.log("DEBUG renderRefugiosTable: Refugios a renderizar:", refugiosArray);
+            console.log("DEBUG renderRefugiosTable: Elemento refugiosTableBody:", refugiosTableBody);
+            refugiosTableBody.empty(); // Limpiar la tabla antes de renderizar
+
+            if (refugiosArray.length === 0) {
+                refugiosTableBody.html(`<tr><td colspan="7" class="text-center py-3"><p data-lang-key="noRecordsFound">${translations[currentLanguage].noRecordsFound}</p></td></tr>`);
+                applyTranslations();
+                console.log("DEBUG renderRefugiosTable: No hay registros para mostrar.");
+                return;
+            }
+
+            refugiosArray.forEach(refugio => {
+                const row = `
+                    <tr>
+                        <td>${refugio.id_refugio}</td>
+                        <td>${refugio.nombre || 'N/A'}</td>
+                        <td>${refugio.ciudad || 'N/A'}</td>
+                        <td>${refugio.telefono || 'N/A'}</td>
+                        <td>${refugio.email || 'N/A'}</td>
+                        <td>${refugio.estado || 'N/A'}</td>
+                        <td>
+                            <button class="btn btn-info btn-sm view-refugio-btn" data-refugio-id="${refugio.id_refugio}" data-lang-key="viewDetails">Ver Detalles</button>
+                            <button class="btn btn-warning btn-sm edit-refugio-btn ms-1" data-refugio-id="${refugio.id_refugio}" data-lang-key="editButton">Editar</button>
+                            <button class="btn btn-danger btn-sm delete-refugio-btn ms-1" data-refugio-id="${refugio.id_refugio}" data-lang-key="deleteButton">Eliminar</button>
+                        </td>
+                    </tr>
+                `;
+                refugiosTableBody.append(row);
+            });
+            applyTranslations(); // Volver a aplicar traducciones a los botones recién creados
+            console.log("DEBUG renderRefugiosTable: Renderizado de tabla completado.");
+        }
+
+        // Función para aplicar filtros y renderizar la tabla
+        function applyFiltersAndRenderRefugios() {
+            console.log("DEBUG applyFiltersAndRenderRefugios: allRefugiosData antes de filtrar:", allRefugiosData);
+            let filteredRefugios = [...allRefugiosData];
+            const searchTerm = $('#refugioSearch').val().toLowerCase().trim();
+            console.log("DEBUG applyFiltersAndRenderRefugios: Search term:", searchTerm);
+
+            if (searchTerm) {
+                filteredRefugios = filteredRefugios.filter(refugio =>
+                    (refugio.id_refugio && String(refugio.id_refugio).includes(searchTerm)) ||
+                    (refugio.nombre && refugio.nombre.toLowerCase().includes(searchTerm)) ||
+                    (refugio.ciudad && refugio.ciudad.toLowerCase().includes(searchTerm)) ||
+                    (refugio.telefono && refugio.telefono.toLowerCase().includes(searchTerm)) ||
+                    (refugio.email && refugio.email.toLowerCase().includes(searchTerm)) ||
+                    (refugio.estado && refugio.estado.toLowerCase().includes(searchTerm))
+                );
+            }
+            console.log("DEBUG applyFiltersAndRenderRefugios: filteredRefugios después de filtrar:", filteredRefugios);
+            renderRefugiosTable(filteredRefugios); // Llama a renderRefugiosTable
+        }
+
+        // Función para cargar los refugios desde la API
+        async function loadRefugios() {
+            refugiosTableBody.html('<tr><td colspan="7" class="text-center py-3"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div><p class="mt-2">Cargando refugios...</p></td></tr>');
+
+            try {
+                console.log("DEBUG refugios.html: Llamando window.ApiService.get('/refugios', true) para cargar refugios.");
+                const response = await window.ApiService.get('/refugios', true); 
+                console.log("DEBUG refugios.html: Respuesta de la API al cargar refugios:", response);
+
+                if (response.status === 'success' || response.status === 'éxito') {
+                    if (response.data && response.data.length > 0) {
+                        allRefugiosData = response.data; // Esto poblaba el array
+                        applyFiltersAndRenderRefugios(); // Esto llama a la función de renderizado
+                        console.log("DEBUG refugios.html: Refugios cargados y renderizados exitosamente.");
+                    } else {
+                        refugiosTableBody.html(`<tr><td colspan="7" class="text-center py-3"><p data-lang-key="noRecordsFound">${translations[currentLanguage].noRecordsFound}</p></td></tr>`);
+                        applyTranslations();
+                        console.log("DEBUG refugios.html: La API devolvió éxito pero sin datos.");
+                    }
+                } else if (response.status === 'info') {
+                    refugiosTableBody.html(`<tr><td colspan="7" class="text-center py-3"><p data-lang-key="noRecordsFound">${translations[currentLanguage].noRecordsFound}</p></td></tr>`);
+                    applyTranslations();
+                    console.log("DEBUG refugios.html: La API informó que no se encontraron refugios.");
+                } 
+                else {
+                    console.error("ERROR refugios.html: La API devolvió un error al cargar refugios:", response.message || response);
+                    refugiosTableBody.html(`<tr><td colspan="7" class="text-center py-3"><p class="text-danger" data-lang-key="generalError">${translations[currentLanguage].generalError}: ${response.message || 'Error desconocido de la API.'}</p></td></tr>`);
+                    applyTranslations();
+                    Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: response.message || 'Error al cargar los refugios.' });
+                }
+            } catch (error) {
+                console.error("ERROR refugios.html: Fallo al cargar refugios (captura general):", error);
+                let errorMessage = 'Error de comunicación con el servidor al cargar refugios.';
+                if (error.responseJSON && error.responseJSON.message) { errorMessage = error.responseJSON.message; } 
+                else if (error.statusText) { errorMessage = `Error de red: ${error.statusText} (Código: ${error.status || 'N/A'})`; } 
+                else if (error.message) { errorMessage = `Error JavaScript: ${error.message}`; }
+                refugiosTableBody.html(`<tr><td colspan="7" class="text-center py-3"><p class="text-danger" data-lang-key="generalError">${translations[currentLanguage].generalError}: ${errorMessage}</p></td></tr>`);
+                applyTranslations();
+                Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: errorMessage });
+            }
+        }
+            
+        // --- Llamada Inicial para cargar los datos cuando el DOM esté listo ---
+        loadRefugios();
+
+        // --- Event Listeners con Namespaces ---
+
+        $(document).on('click.refugios', '#addRefugioBtn', function() {
+            $('#refugioForm')[0].reset();
+            $('#refugioId').val('');
+            $('#refugioModalLabel').attr('data-lang-key', 'addShelter').text(translations[currentLanguage].addShelter);
+            $('#refugioModal').modal('show');
+            applyTranslations();
+        });
+
+        $(document).on('click.refugios', '.edit-refugio-btn', async function() {
+            const refugioId = $(this).data('refugio-id');
+            console.log(`DEBUG refugios.html: Clic en 'Editar' para Refugio ID: ${refugioId}`);
+
+            try {
+                const response = await window.ApiService.get(`/refugios/${refugioId}`, true);
+                if ((response.status === 'success' || response.status === 'éxito') && response.data) {
+                    const refugio = response.data;
+                    $('#refugioId').val(refugio.id_refugio).prop('disabled', false);
+                    $('#refugioNombre').val(refugio.nombre).prop('disabled', false);
+                    $('#refugioDireccion').val(refugio.direccion).prop('disabled', false);
+                    $('#refugioCiudad').val(refugio.ciudad).prop('disabled', false);
+                    $('#refugioPais').val(refugio.pais).prop('disabled', false);
+                    $('#refugioTelefono').val(refugio.telefono).prop('disabled', false);
+                    $('#refugioEmail').val(refugio.email).prop('disabled', false);
+                    $('#refugioLatitud').val(refugio.latitud).prop('disabled', false);
+                    $('#refugioLongitud').val(refugio.longitud).prop('disabled', false);
+                    $('#refugioEstado').val(refugio.estado).prop('disabled', false);
+
+                    $('#refugioForm button[type="submit"]').show();
+
+                    $('#refugioModalLabel').attr('data-lang-key', 'editShelter').text(translations[currentLanguage].editShelter);
+                    $('#refugioModal').modal('show');
+                    applyTranslations();
+                } else {
+                    Swal.fire({ icon: 'warning', title: translations[currentLanguage].generalError, text: response.message || 'No se pudieron cargar los detalles del refugio.' });
+                }
+            } catch (error) {
+                console.error("ERROR refugios.html: Fallo al cargar detalles del refugio:", error);
+                Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: 'Error al cargar los detalles del refugio.' });
+            }
+        });
+
+        const $refugioForm = $('#refugioForm');
+        $refugioForm.off('submit.refugios').on('submit.refugios', async function(e) {
+            e.preventDefault();
+
+            if (isSubmittingRefugio) {
+                console.warn("DEBUG refugios.html: Intento de doble submit detectado y prevenido.");
+                return; 
+            }
+            isSubmittingRefugio = true;
+
+            console.log("DEBUG refugios.html: ¡Manejador de SUBMIT del formulario activado!");
+            console.log("DEBUG refugios.html: Enviando formulario de refugio.");
+
+            const refugioId = $('#refugioId').val();
+            console.log("DEBUG refugios.html: ID del refugio para API call:", refugioId);
+            const refugioData = {
+                nombre: $('#refugioNombre').val(),
+                direccion: $('#refugioDireccion').val() || null,
+                ciudad: $('#refugioCiudad').val(),
+                pais: $('#refugioPais').val() || null,
+                telefono: $('#refugioTelefono').val() || null,
+                email: $('#refugioEmail').val() || null,
+                latitud: $('#refugioLatitud').val() || null,
+                longitud: $('#refugioLongitud').val() || null,
+                estado: $('#refugioEstado').val()
+            };
+            console.log("DEBUG refugios.html: Datos a enviar para API call:", refugioData);
+
+            try {
+                let response;
+                if (refugioId) {
+                    console.log(`DEBUG refugios.html: Realizando PUT a /refugios/${refugioId}`);
+                    response = await window.ApiService.put(`/refugios/${refugioId}`, refugioData, true);
+                } else {
+                    console.log("DEBUG refugios.html: Realizando POST a /refugios");
+                    response = await window.ApiService.post('/refugios', refugioData, true);
+                }
+
+                console.log("DEBUG refugios.html: Respuesta de la API al guardar/editar refugio:", response);
+
+                if (response.status === 'success' || response.status === 'éxito') {
+                    Swal.fire({ icon: 'success', title: translations[currentLanguage].updateSuccess, text: response.message || 'Refugio guardado exitosamente.' });
+                    $('#refugioModal').modal('hide');
+                    loadRefugios();
+                } else if (response.status === 'info') {
+                    Swal.fire({ icon: 'info', title: translations[currentLanguage].infoTitle, text: response.message || 'No se realizaron cambios en el refugio.' });
+                    $('#refugioModal').modal('hide');
+                    loadRefugios();
+                } else {
+                    Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: response.message || 'Error al guardar el refugio.' });
+                }
+            } catch (error) {
+                console.error("ERROR refugios.html: Fallo al guardar refugio (captura general):", error);
+                let errorMessage = 'Error de comunicación con el servidor al guardar refugio.';
+                if (error.responseJSON && error.responseJSON.message) { errorMessage = error.responseJSON.message; } 
+                else if (error.statusText) { errorMessage = `Error de red: ${error.statusText} (Código: ${error.status || 'N/A'})`; } 
+                else if (error.message) { errorMessage = `Error JavaScript: ${error.message}`; }
+                Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: errorMessage });
+            } finally {
+                isSubmittingRefugio = false;
+            }
+        });
+
+        $(document).on('click.refugios', '.view-refugio-btn', async function() {
+            const refugioId = $(this).data('refugio-id');
+            console.log(`DEBUG refugios.html: Clic en 'Ver Detalles' para Refugio ID: ${refugioId}`);
+
+            try {
+                const response = await window.ApiService.get(`/refugios/${refugioId}`, true);
+                if ((response.status === 'success' || response.status === 'éxito') && response.data) {
+                    const refugio = response.data;
+                    $('#refugioId').val(refugio.id_refugio).prop('disabled', true);
+                    $('#refugioNombre').val(refugio.nombre).prop('disabled', true);
+                    $('#refugioDireccion').val(refugio.direccion).prop('disabled', true);
+                    $('#refugioCiudad').val(refugio.ciudad).prop('disabled', true);
+                    $('#refugioPais').val(refugio.pais).prop('disabled', true);
+                    $('#refugioTelefono').val(refugio.telefono).prop('disabled', true);
+                    $('#refugioEmail').val(refugio.email).prop('disabled', true);
+                    $('#refugioLatitud').val(refugio.latitud).prop('disabled', true);
+                    $('#refugioLongitud').val(refugio.longitud).prop('disabled', true);
+                    $('#refugioEstado').val(refugio.estado).prop('disabled', true);
+
+                    $('#refugioForm button[type="submit"]').hide();
+
+                    $('#refugioModalLabel').attr('data-lang-key', 'shelterDetailsTitle').text(translations[currentLanguage].shelterDetailsTitle);
+                    $('#refugioModal').modal('show');
+                    applyTranslations();
+
+                    $('#refugioModal').one('hidden.bs.modal', function () {
+                        $('#refugioForm input, #refugioForm select').prop('disabled', false);
+                        $('#refugioForm button[type="submit"]').show();
+                    });
+
+                } else {
+                    Swal.fire({ icon: 'warning', title: translations[currentLanguage].generalError, text: response.message || 'No se pudieron cargar los detalles del refugio.' });
+                }
+            } catch (error) {
+                console.error("ERROR refugios.html: Fallo al cargar detalles del refugio para ver:", error);
+                Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: 'Error al cargar los detalles del refugio.' });
+            }
+        });
+
+        $(document).on('click.refugios', '.delete-refugio-btn', function() {
+            const refugioId = $(this).data('refugio-id');
+            console.log(`DEBUG refugios.html: Clic en 'Eliminar' para Refugio ID: ${refugioId}`);
+
+            Swal.fire({
+                title: translations[currentLanguage].confirmDeleteTitle, text: translations[currentLanguage].confirmDeleteText,
+                icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#3085d6',
+                confirmButtonText: translations[currentLanguage].yesDeleteIt, cancelButtonText: translations[currentLanguage].cancelButton
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    try {
+                        const response = await window.ApiService.remove(`/refugios/${refugioId}`, true);
+
+                        if (response.status === 'success' || response.status === 'éxito') {
+                            Swal.fire({ icon: 'success', title: translations[currentLanguage].deleteSuccess, text: response.message || 'Refugio eliminado exitosamente.' });
+                            loadRefugios();
+                        } else {
+                            Swal.fire({ icon: 'error', title: translations[currentLanguage].deleteError, text: response.message || 'Error al eliminar el refugio.' });
+                        }
+                    } catch (error) {
+                        console.error("ERROR refugios.html: Fallo al eliminar refugio desde la API:", error);
+                        let errorMessage = 'Error de comunicación con el servidor al eliminar refugio.';
+                        if (error.responseJSON && error.responseJSON.message) { errorMessage = error.responseJSON.message; } 
+                        else if (error.statusText) { errorMessage = `Error de red: ${error.statusText} (Código: ${error.status || 'N/A'})`; } 
+                        else if (error.message) { errorMessage = `Error JavaScript: ${error.message}`; }
+                        Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: errorMessage });
+                    }
+                }
+            });
+        });
+
+        $(document).on('change.refugios keyup.refugios', '#refugioSearch', function() {
+            applyFiltersAndRenderRefugios();
+        });
+
+        $(document).on('click.refugios', '#backToDashboardBtn', function() {
+            window.loadComponent('dashboard-admin');
+        });
+
+        // --- Limpieza de eventos al salir del componente ---
+        $(document).on('componentUnloaded.refugiosCleanup', function(event, unloadedComponentName) { 
+            if (unloadedComponentName === 'refugios') {
+                console.log("DEBUG refugios.html: ¡componentUnloaded para refugios detectado! Limpiando listeners.");
+                $(document).off('.refugios'); // Desvincular todos los event listeners con el namespace '.refugios'
+                $('#refugioForm').off('submit.refugios'); // Desvincular el evento submit directamente del formulario
+                $(document).off('componentUnloaded.refugiosCleanup'); // Desvincular este propio listener
+                
+                console.log("DEBUG refugios.html: Event listeners de refugios limpiados.");
+            }
+        });
+    }); // Cierre de $(function() { ... });
+</script>

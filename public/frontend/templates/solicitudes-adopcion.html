@@ -1,0 +1,435 @@
+<!-- public/frontend/templates/solicitudes-adopcion.html -->
+
+<div class="row justify-content-center">
+    <div class="col-md-10 col-lg-10">
+        <h2 class="text-center mb-4" data-lang-key="manageAdoptionRequestsTitle">Gestionar Solicitudes de Adopción</h2>
+
+        <!-- Botón Atrás -->
+        <div class="mb-3">
+            <button id="backToDashboardBtn" class="btn btn-secondary" data-lang-key="backButton">Atrás</button>
+        </div>
+
+        <!-- Barra de búsqueda y filtros (si se necesitan en el futuro) -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <input type="text" class="form-control" id="solicitudSearch" placeholder="Buscar solicitudes..." data-lang-key="searchRequestsPlaceholder">
+            </div>
+        </div>
+
+        <!-- Contenedor para la tabla de solicitudes -->
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th data-lang-key="requestId">ID</th>
+                        <th data-lang-key="petName">Mascota</th>
+                        <th data-lang-key="applicantName">Solicitante</th>
+                        <th data-lang-key="requestDate">Fecha Solicitud</th>
+                        <th data-lang-key="requestStatus">Estado</th>
+                        <th data-lang-key="actions">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="solicitudesTableBody">
+                    <!-- Las filas de solicitudes se cargarán aquí dinámicamente -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Botón para Añadir Solicitud (opcional, si se permite desde el admin) -->
+        <div class="d-grid gap-2 mt-4">
+            <button id="addSolicitudBtn" class="btn btn-success btn-lg" data-lang-key="addRequest">Añadir Solicitud</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Ver Detalles de la Solicitud -->
+<div class="modal fade" id="viewSolicitudDetailsModal" tabindex="-1" aria-labelledby="viewSolicitudDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewSolicitudDetailsModalLabel" data-lang-key="requestDetailsTitle">Detalles de la Solicitud</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong><span data-lang-key="requestIdLabel">ID Solicitud:</span></strong> <span id="detailSolicitudId"></span></p>
+                <p><strong><span data-lang-key="petNameLabel">Mascota:</span></strong> <span id="detailSolicitudPetName"></span> (ID: <span id="detailSolicitudPetId"></span>)</p>
+                <p><strong><span data-lang-key="applicantNameLabel">Solicitante:</span></strong> <span id="detailSolicitudUserName"></span> (ID: <span id="detailSolicitudUserId"></span>)</p>
+                <p><strong><span data-lang-key="requestDateLabel">Fecha de Solicitud:</span></strong> <span id="detailSolicitudDate"></span></p>
+                <p><strong><span data-lang-key="requestStatusLabel">Estado:</span></strong> <span id="detailSolicitudStatus"></span></p>
+                <p><strong><span data-lang-key="initialCommentsLabel">Comentarios Iniciales:</span></strong> <span id="detailSolicitudMotivo"></span></p> <!-- Muestra el campo 'motivo' -->
+                <p><strong><span data-lang-key="observationsLabel">Observaciones (Admin):</span></strong> <span id="detailSolicitudObservaciones"></span></p> <!-- Muestra el campo 'observaciones' -->
+                <hr>
+                <h6><span data-lang-key="petInfoTitle">Información de la Mascota</span></h6>
+                <p><strong><span data-lang-key="speciesLabel">Especie:</span></strong> <span id="detailPetSpecies"></span></p>
+                <p><strong><span data-lang-key="breedLabel">Raza:</span></strong> <span id="detailPetBreed"></span></p>
+                <p><strong><span data-lang-key="ageLabel">Edad:</span></strong> <span id="detailPetAge"></span></p>
+                <p><strong><span data-lang-key="sexLabel">Sexo:</span></strong> <span id="detailPetSex"></span></p>
+                <p><strong><span data-lang-key="sizeLabel">Tamaño:</span></strong> <span id="detailPetSize"></span></p>
+                <hr>
+                <h6><span data-lang-key="applicantInfoTitle">Información del Solicitante</span></h6>
+                <p><strong><span data-lang-key="userEmailLabel">Email:</span></strong> <span id="detailUserEmail"></span></p>
+                <p><strong><span data-lang-key="userPhoneLabel">Teléfono:</span></strong> <span id="detailUserPhone"></span></p>
+                <p><strong><span data-lang-key="userAddressLabel">Dirección:</span></strong> <span id="detailUserAddress"></span></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-lang-key="closeButton">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Actualizar Estado de la Solicitud -->
+<div class="modal fade" id="updateStatusModal" tabindex="-1" aria-labelledby="updateStatusModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="updateStatusModalLabel" data-lang-key="updateRequestStatus">Actualizar Estado de Solicitud</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="updateStatusForm">
+                    <input type="hidden" id="updateSolicitudId">
+                    <div class="mb-3">
+                        <label for="newStatus" class="form-label" data-lang-key="newStatusLabel">Nuevo Estado:</label>
+                        <select class="form-select" id="newStatus" required>
+                            <option value="Pendiente" data-lang-key="statusPending">Pendiente</option>
+                            <option value="Aprobada" data-lang-key="statusApproved">Aprobada</option>
+                            <option value="Rechazada" data-lang-key="statusRejected">Rechazada</option>
+                            <option value="Cancelada" data-lang-key="statusCancelled">Cancelada</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="statusComments" class="form-label" data-lang-key="observationsLabel">Observaciones (Opcional):</label> <!-- Cambiado a observacionesLabel -->
+                        <textarea class="form-control" id="statusComments" rows="3"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary" data-lang-key="saveChanges">Guardar Cambios</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Añadir Solicitud (si se habilita) -->
+<div class="modal fade" id="addSolicitudModal" tabindex="-1" aria-labelledby="addSolicitudModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addSolicitudModalLabel" data-lang-key="addRequest">Añadir Solicitud</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addSolicitudForm">
+                    <div class="mb-3">
+                        <label for="addSolicitudPetId" class="form-label" data-lang-key="petIdLabel">ID Mascota:</label>
+                        <input type="number" class="form-control" id="addSolicitudPetId" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addSolicitudUserId" class="form-label" data-lang-key="userIdLabel">ID Solicitante:</label>
+                        <input type="number" class="form-control" id="addSolicitudUserId" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addSolicitudComments" class="form-label" data-lang-key="initialCommentsLabel">Comentarios Iniciales:</label> <!-- Cambiado a initialCommentsLabel -->
+                        <textarea class="form-control" id="addSolicitudComments" rows="3"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary" data-lang-key="saveRequest">Guardar Solicitud</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    // Script para solicitudes-adopcion.html
+    (function() {
+        console.log("DEBUG solicitudes-adopcion.html: Iniciando carga del script.");
+        applyTranslations(); // Aplicar traducciones a los elementos estáticos iniciales
+
+        const solicitudesTableBody = $('#solicitudesTableBody');
+        let allSolicitudesData = []; // Variable para almacenar todas las solicitudes cargadas
+
+        async function loadSolicitudes() {
+            solicitudesTableBody.html('<tr><td colspan="6" class="text-center py-3"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div><p class="mt-2">Cargando solicitudes...</p></td></tr>');
+
+            try {
+                console.log("DEBUG solicitudes-adopcion.html: Llamando window.ApiService.get('/solicitudes-adopcion', true) para cargar solicitudes.");
+                const response = await window.ApiService.get('/solicitudes-adopcion', true);
+                console.log("DEBUG solicitudes-adopcion.html: Respuesta de la API al cargar solicitudes:", response);
+
+                if (response.status === 'success' || response.status === 'éxito') {
+                    if (response.data && response.data.length > 0) {
+                        allSolicitudesData = response.data;
+                        applyFiltersAndRenderSolicitudes();
+                        console.log("DEBUG solicitudes-adopcion.html: Solicitudes cargadas y renderizadas exitosamente.");
+                    } else {
+                        solicitudesTableBody.html(`<tr><td colspan="6" class="text-center py-3"><p data-lang-key="noRecordsFound">${translations[currentLanguage].noRecordsFound}</p></td></tr>`);
+                        applyTranslations();
+                        console.log("DEBUG solicitudes-adopcion.html: La API devolvió éxito pero sin datos.");
+                    }
+                } else if (response.status === 'info') {
+                    solicitudesTableBody.html(`<tr><td colspan="6" class="text-center py-3"><p data-lang-key="noRecordsFound">${translations[currentLanguage].noRecordsFound}</p></td></tr>`);
+                    applyTranslations();
+                    console.log("DEBUG solicitudes-adopcion.html: La API informó que no se encontraron solicitudes.");
+                } 
+                else {
+                    console.error("ERROR solicitudes-adopcion.html: La API devolvió un error al cargar solicitudes:", response.message || response);
+                    solicitudesTableBody.html(`<tr><td colspan="6" class="text-center py-3"><p class="text-danger" data-lang-key="generalError">${translations[currentLanguage].generalError}: ${response.message || 'Error desconocido de la API.'}</p></td></tr>`);
+                    applyTranslations();
+                    Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: response.message || 'Error al cargar las solicitudes.' });
+                }
+            } catch (error) {
+                console.error("ERROR solicitudes-adopcion.html: Fallo al cargar solicitudes (captura general):", error);
+                let errorMessage = 'Error de comunicación con el servidor al cargar solicitudes.';
+                if (error.responseJSON && error.responseJSON.message) { errorMessage = error.responseJSON.message; } 
+                else if (error.statusText) { errorMessage = `Error de red: ${error.statusText} (Código: ${error.status || 'N/A'})`; } 
+                else if (error.message) { errorMessage = `Error JavaScript: ${error.message}`; }
+                solicitudesTableBody.html(`<tr><td colspan="6" class="text-center py-3"><p class="text-danger" data-lang-key="generalError">${translations[currentLanguage].generalError}: ${errorMessage}</p></td></tr>`);
+                applyTranslations();
+                Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: errorMessage });
+            }
+        }
+
+        function applyFiltersAndRenderSolicitudes() {
+            let filteredSolicitudes = [...allSolicitudesData];
+            const searchTerm = $('#solicitudSearch').val().toLowerCase().trim();
+
+            if (searchTerm) {
+                filteredSolicitudes = filteredSolicitudes.filter(solicitud =>
+                    (solicitud.id_solicitud && String(solicitud.id_solicitud).includes(searchTerm)) ||
+                    (solicitud.mascota_nombre && solicitud.mascota_nombre.toLowerCase().includes(searchTerm)) ||
+                    (solicitud.solicitante_nombre && solicitud.solicitante_nombre.toLowerCase().includes(searchTerm)) ||
+                    (solicitud.estado_solicitud && solicitud.estado_solicitud.toLowerCase().includes(searchTerm)) ||
+                    (solicitud.fecha_solicitud && solicitud.fecha_solicitud.toLowerCase().includes(searchTerm))
+                );
+            }
+            renderSolicitudesTable(filteredSolicitudes);
+        }
+
+        function renderSolicitudesTable(solicitudesArray) {
+            solicitudesTableBody.empty();
+            if (solicitudesArray.length === 0) {
+                solicitudesTableBody.html(`<tr><td colspan="6" class="text-center py-3"><p data-lang-key="noRecordsFound">${translations[currentLanguage].noRecordsFound}</p></td></tr>`);
+                applyTranslations();
+                return;
+            }
+
+            solicitudesArray.forEach(solicitud => {
+                // Formatear la fecha para mostrar solo YYYY-MM-DD
+                const formattedDate = solicitud.fecha_solicitud ? solicitud.fecha_solicitud.split(' ')[0] : 'N/A';
+
+                const row = `
+                    <tr>
+                        <td>${solicitud.id_solicitud}</td>
+                        <td>${solicitud.mascota_nombre || 'N/A'}</td>
+                        <td>${solicitud.solicitante_nombre || 'N/A'}</td>
+                        <td>${formattedDate}</td> <!-- Usar fecha formateada -->
+                        <td>${solicitud.estado_solicitud || 'N/A'}</td>
+                        <td>
+                            <button class="btn btn-info btn-sm view-solicitud-btn" data-solicitud-id="${solicitud.id_solicitud}" data-lang-key="viewDetails">Ver Detalles</button>
+                            <button class="btn btn-warning btn-sm update-status-btn ms-1" data-solicitud-id="${solicitud.id_solicitud}" data-current-status="${solicitud.estado_solicitud}" data-lang-key="updateStatus">Estado</button>
+                            <button class="btn btn-danger btn-sm delete-solicitud-btn ms-1" data-solicitud-id="${solicitud.id_solicitud}" data-lang-key="deleteButton">Eliminar</button>
+                        </td>
+                    </tr>
+                `;
+                solicitudesTableBody.append(row);
+            });
+            applyTranslations();
+        }
+
+        // Cargar solicitudes al cargar el componente
+        loadSolicitudes();
+
+        // --- Event Listeners ---
+
+        // Manejar clic en el botón "Añadir Solicitud" (opcional)
+        $(document).off('click', '#addSolicitudBtn').on('click', '#addSolicitudBtn', function() {
+            $('#addSolicitudForm')[0].reset();
+            $('#addSolicitudModal').modal('show');
+        });
+
+        // Manejar el envío del formulario de Añadir Solicitud (opcional)
+        $(document).off('submit', '#addSolicitudForm').on('submit', '#addSolicitudForm', async function(e) {
+            e.preventDefault();
+            console.log("DEBUG solicitudes-adopcion.html: Enviando formulario de añadir solicitud.");
+
+            const solicitudData = {
+                id_mascota: parseInt($('#addSolicitudPetId').val()),
+                id_usuario: parseInt($('#addSolicitudUserId').val()),
+                comentarios: $('#addSolicitudComments').val() || null, // Se mapeará a 'motivo' en el backend
+                fecha_solicitud: new Date().toISOString().slice(0, 10), // Fecha actual (solo fecha)
+                estado_solicitud: 'Pendiente' // Estado inicial
+            };
+
+            if (isNaN(solicitudData.id_mascota) || isNaN(solicitudData.id_usuario)) {
+                Swal.fire({ icon: 'error', title: translations[currentLanguage].formCorrectionError, text: 'Por favor, introduce IDs válidos para Mascota y Solicitante.' });
+                return;
+            }
+
+            try {
+                console.log("DEBUG solicitudes-adopcion.html: Llamando window.ApiService.post('/solicitudes-adopcion', solicitudData, true)");
+                const response = await window.ApiService.post('/solicitudes-adopcion', solicitudData, true);
+
+                if (response.status === 'success' || response.status === 'éxito') {
+                    Swal.fire({ icon: 'success', title: translations[currentLanguage].createSuccess, text: response.message || 'Solicitud añadida exitosamente.' });
+                    $('#addSolicitudModal').modal('hide');
+                    loadSolicitudes();
+                } else {
+                    Swal.fire({ icon: 'error', title: translations[currentLanguage].createError, text: response.message || 'Error al añadir la solicitud.' });
+                }
+            } catch (error) {
+                console.error("ERROR solicitudes-adopcion.html: Fallo al añadir solicitud (captura general):", error);
+                let errorMessage = 'Error de comunicación con el servidor al añadir solicitud.';
+                if (error.responseJSON && error.responseJSON.message) { errorMessage = error.responseJSON.message; } 
+                else if (error.statusText) { errorMessage = `Error de red: ${error.statusText} (Código: ${error.status || 'N/A'})`; } 
+                else if (error.message) { errorMessage = `Error JavaScript: ${error.message}`; }
+                Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: errorMessage });
+            }
+        });
+
+
+        // Manejar clic en el botón "Ver Detalles"
+        $(document).off('click', '.view-solicitud-btn').on('click', '.view-solicitud-btn', async function() {
+            const solicitudId = $(this).data('solicitud-id');
+            console.log(`DEBUG solicitudes-adopcion.html: Clic en 'Ver Detalles' para Solicitud ID: ${solicitudId}`);
+
+            try {
+                console.log(`DEBUG solicitudes-adopcion.html: Llamando window.ApiService.get('/solicitudes-adopcion/${solicitudId}', true)`);
+                const response = await window.ApiService.get(`/solicitudes-adopcion/${solicitudId}`, true);
+                console.log("DEBUG solicitudes-adopcion.html: Respuesta de la API al obtener detalles de solicitud:", response);
+
+                if ((response.status === 'success' || response.status === 'éxito') && response.data) {
+                    const solicitud = response.data;
+                    
+                    // Populate modal with combined data from backend
+                    $('#detailSolicitudId').text(solicitud.id_solicitud || 'N/A');
+                    $('#detailSolicitudPetName').text(solicitud.mascota_nombre || 'N/A');
+                    $('#detailSolicitudPetId').text(solicitud.id_mascota || 'N/A');
+                    $('#detailSolicitudUserName').text(solicitud.solicitante_nombre_completo || 'N/A');
+                    $('#detailSolicitudUserId').text(solicitud.id_usuario || 'N/A');
+                    $('#detailSolicitudDate').text(solicitud.fecha_solicitud ? solicitud.fecha_solicitud.split(' ')[0] : 'N/A'); // Formatear fecha
+                    $('#detailSolicitudStatus').text(solicitud.estado_solicitud || 'N/A');
+                    $('#detailSolicitudMotivo').text(solicitud.motivo || 'N/A'); // Mostrar motivo
+                    $('#detailSolicitudObservaciones').text(solicitud.observaciones || 'N/A'); // Mostrar observaciones
+
+                    // Pet Info (directamente del objeto solicitud que ya tiene los joins)
+                    $('#detailPetSpecies').text(solicitud.mascota_especie || 'N/A');
+                    $('#detailPetBreed').text(solicitud.mascota_raza || 'N/A');
+                    $('#detailPetAge').text(solicitud.mascota_edad ? `${solicitud.mascota_edad} ${translations[currentLanguage].yearsLabel || 'años'}` : 'N/A');
+                    $('#detailPetSex').text(solicitud.mascota_sexo || 'N/A');
+                    $('#detailPetSize').text(solicitud.mascota_tamano || 'N/A');
+
+                    // Applicant Info (directamente del objeto solicitud que ya tiene los joins)
+                    $('#detailUserEmail').text(solicitud.solicitante_email || 'N/A');
+                    $('#detailUserPhone').text(solicitud.solicitante_telefono || 'N/A');
+                    $('#detailUserAddress').text(solicitud.solicitante_direccion || 'N/A');
+
+                    $('#viewSolicitudDetailsModal').modal('show');
+                    applyTranslations();
+                    console.log("DEBUG solicitudes-adopcion.html: Modal de detalles de solicitud mostrado exitosamente.");
+                } else {
+                    console.warn("DEBUG solicitudes-adopcion.html: No se pudieron obtener los detalles de la solicitud o la API devolvió un error.");
+                    Swal.fire({ icon: 'warning', title: translations[currentLanguage].generalError, text: response.message || 'No se pudieron cargar los detalles de la solicitud.' });
+                }
+            } catch (error) {
+                console.error("ERROR solicitudes-adopcion.html: Fallo al obtener detalles de solicitud desde la API:", error);
+                let errorMessage = 'Error de comunicación con el servidor al cargar los detalles de la solicitud.';
+                if (error.responseJSON && error.responseJSON.message) { errorMessage = error.responseJSON.message; } 
+                else if (error.statusText) { errorMessage = `Error de red: ${error.statusText} (Código: ${error.status || 'N/A'})`; } 
+                else if (error.message) { errorMessage = `Error JavaScript: ${error.message}`; }
+                Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: errorMessage });
+            }
+        });
+
+        // Manejar clic en el botón "Actualizar Estado"
+        $(document).off('click', '.update-status-btn').on('click', '.update-status-btn', function() {
+            const solicitudId = $(this).data('solicitud-id');
+            const currentStatus = $(this).data('current-status');
+            console.log(`DEBUG solicitudes-adopcion.html: Clic en 'Actualizar Estado' para Solicitud ID: ${solicitudId}, Estado actual: ${currentStatus}`);
+            
+            $('#updateSolicitudId').val(solicitudId);
+            $('#newStatus').val(currentStatus); // Pre-seleccionar el estado actual
+            $('#statusComments').val(''); // Limpiar comentarios previos
+            $('#updateStatusModal').modal('show');
+            applyTranslations();
+        });
+
+        // Manejar el envío del formulario de Actualizar Estado
+        $(document).off('submit', '#updateStatusForm').on('submit', '#updateStatusForm', async function(e) {
+            e.preventDefault();
+            console.log("DEBUG solicitudes-adopcion.html: Enviando formulario de actualización de estado.");
+
+            const solicitudId = $('#updateSolicitudId').val();
+            const newStatus = $('#newStatus').val();
+            const comments = $('#statusComments').val() || null; // Se mapeará a 'observaciones' en el backend
+
+            const updateData = {
+                estado_solicitud: newStatus,
+                comentarios: comments 
+            };
+
+            try {
+                console.log(`DEBUG solicitudes-adopcion.html: Llamando window.ApiService.put('/solicitudes-adopcion/${solicitudId}/estado', updateData, true)`);
+                const response = await window.ApiService.put(`/solicitudes-adopcion/${solicitudId}/estado`, updateData, true);
+
+                if (response.status === 'success' || response.status === 'éxito') {
+                    Swal.fire({ icon: 'success', title: translations[currentLanguage].updateSuccess, text: response.message || 'Estado de solicitud actualizado exitosamente.' });
+                    $('#updateStatusModal').modal('hide');
+                    loadSolicitudes(); // Recargar la lista
+                } else {
+                    Swal.fire({ icon: 'error', title: translations[currentLanguage].updateError, text: response.message || 'Error al actualizar el estado de la solicitud.' });
+                }
+            } catch (error) {
+                console.error("ERROR solicitudes-adopcion.html: Fallo al actualizar estado de solicitud (captura general):", error);
+                let errorMessage = 'Error de comunicación con el servidor al actualizar estado.';
+                if (error.responseJSON && error.responseJSON.message) { errorMessage = error.responseJSON.message; } 
+                else if (error.statusText) { errorMessage = `Error de red: ${error.statusText} (Código: ${error.status || 'N/A'})`; } 
+                else if (error.message) { errorMessage = `Error JavaScript: ${error.message}`; }
+                Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: errorMessage });
+            }
+        });
+
+        // Lógica para el botón "Eliminar Solicitud"
+        $(document).off('click', '.delete-solicitud-btn').on('click', '.delete-solicitud-btn', function() {
+            const solicitudId = $(this).data('solicitud-id');
+            console.log(`DEBUG solicitudes-adopcion.html: Clic en 'Eliminar' para Solicitud ID: ${solicitudId}`);
+
+            Swal.fire({
+                title: translations[currentLanguage].confirmDeleteTitle, text: translations[currentLanguage].confirmDeleteText,
+                icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#3085d6',
+                confirmButtonText: translations[currentLanguage].yesDeleteIt, cancelButtonText: translations[currentLanguage].cancelButton
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    try {
+                        console.log(`DEBUG solicitudes-adopcion.html: Llamando window.ApiService.remove('/solicitudes-adopcion/${solicitudId}', true)`);
+                        const response = await window.ApiService.remove(`/solicitudes-adopcion/${solicitudId}`, true);
+
+                        if (response.status === 'success' || response.status === 'éxito') {
+                            Swal.fire({ icon: 'success', title: translations[currentLanguage].deleteSuccess, text: response.message || 'Solicitud eliminada exitosamente.' });
+                            loadSolicitudes();
+                        } else {
+                            Swal.fire({ icon: 'error', title: translations[currentLanguage].deleteError, text: response.message || 'Error al eliminar la solicitud.' });
+                        }
+                    } catch (error) {
+                        console.error("ERROR solicitudes-adopcion.html: Fallo al eliminar solicitud desde la API:", error);
+                        let errorMessage = 'Error de comunicación con el servidor al eliminar solicitud.';
+                        if (error.responseJSON && error.responseJSON.message) { errorMessage = error.responseJSON.message; } 
+                        else if (error.statusText) { errorMessage = `Error de red: ${error.statusText} (Código: ${error.status || 'N/A'})`; } 
+                        else if (error.message) { errorMessage = `Error JavaScript: ${error.message}`; }
+                        Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: errorMessage });
+                    }
+                }
+            });
+        });
+
+        // Lógica para el filtro de búsqueda
+        $(document).off('change keyup', '#solicitudSearch').on('change keyup', '#solicitudSearch', function() {
+            applyFiltersAndRenderSolicitudes();
+        });
+
+        // Lógica para el botón "Atrás"
+        $(document).off('click', '#backToDashboardBtn').on('click', '#backToDashboardBtn', function() {
+            window.loadComponent('dashboard-admin');
+        });
+
+    })();
+</script>

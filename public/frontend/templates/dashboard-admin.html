@@ -1,0 +1,166 @@
+<!-- public/frontend/templates/dashboard-admin.html -->
+
+<div class="row justify-content-center">
+    <div class="col-md-10 col-lg-8">
+        <h2 class="text-center mb-4" data-lang-key="adminDashboardTitle">Panel de Administración</h2>
+        <div class="alert alert-success text-center" role="alert">
+            <p data-lang-key="welcomeText">Bienvenido, Administrador. Aquí puedes gestionar el sistema.</p>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-md-4 mb-3">
+                <div class="card p-3 text-center">
+                    <h5 data-lang-key="totalPetsAvailable">Mascotas Disponibles</h5>
+                    <p class="h3" id="availablePetsCount">Cargando...</p> <!-- ID añadido para actualizar -->
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="card p-3 text-center">
+                    <h5 data-lang-key="pendingAdoptions">Solicitudes Pendientes</h5>
+                    <p class="h3" id="pendingRequestsCount">Cargando...</p> <!-- ID añadido para actualizar -->
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="card p-3 text-center">
+                    <h5 data-lang-key="completedAdoptions">Adopciones Completadas</h5>
+                    <p class="h3" id="completedAdoptionsCount">Cargando...</p> <!-- ID añadido para actualizar -->
+                </div>
+            </div>
+        </div>
+
+        <h3 class="mt-5 mb-3">Gestión Rápida</h3>
+        <div class="list-group">
+            <!-- Botón para Gestionar Usuarios -->
+            <button class="list-group-item list-group-item-action load-component-btn" data-component="users" data-lang-key="manageUsers">
+                <i class="fas fa-users me-2"></i> Gestionar Usuarios
+            </button>
+            <!-- Botón para Gestionar Mascotas (Ahora es el único punto de entrada para la CRUD de mascotas) -->
+            <button class="list-group-item list-group-item-action load-component-btn" data-component="pets" data-lang-key="managePets">
+                <i class="fas fa-cat me-2"></i> Gestionar Mascotas
+            </button>
+            <!-- El botón "Ver Listado de Mascotas" ha sido eliminado de aquí -->
+            <!-- Botón para Gestionar Solicitudes de Adopción -->
+            <button class="list-group-item list-group-item-action load-component-btn" data-component="solicitudes-adopcion" data-lang-key="manageAdoptionRequests">
+                <i class="fas fa-clipboard-list me-2"></i> Gestionar Solicitudes de Adopción
+            </button>
+            <!-- Botón para Gestionar Refugios -->
+            <button class="list-group-item list-group-item-action load-component-btn" data-component="refugios" data-lang-key="manageShelters">
+                <i class="fas fa-home me-2"></i> Gestionar Refugios
+            </button>
+            <!-- Botón para Gestionar Eventos -->
+            <button class="list-group-item list-group-item-action load-component-btn" data-component="eventos" data-lang-key="manageEvents">
+                <i class="fas fa-calendar-alt me-2"></i> Gestionar Eventos
+            </button>
+            <!-- Botón para Ver Estadísticas y Reportes -->
+            <button class="list-group-item list-group-item-action load-component-btn" data-component="dashboard-reports" data-lang-key="viewStatistics">
+                <i class="fas fa-chart-bar me-2"></i> Ver Estadísticas y Reportes
+            </button>
+            <!-- NUEVO: Botón para Gestionar Historial Médico -->
+            <button class="list-group-item list-group-item-action load-component-btn" data-component="historial-medico" data-lang-key="manageMedicalHistory">
+                <i class="fas fa-notes-medical me-2"></i> Gestionar Historial Médico
+            </button>
+            <!-- NUEVO: Botón para Gestionar Seguimientos Post-Adopción -->
+            <button class="list-group-item list-group-item-action load-component-btn" data-component="seguimientos-admin" data-lang-key="manageFollowUps">
+                <i class="fas fa-clipboard-check me-2"></i> Gestionar Seguimientos Post-Adopción
+            </button>
+            <!-- NUEVO: Botón para Gestionar Donaciones -->
+            <button class="list-group-item list-group-item-action load-component-btn" data-component="donaciones-admin" data-lang-key="manageDonations">
+                <i class="fas fa-hand-holding-usd me-2"></i> Gestionar Donaciones
+            </button>
+            <!-- NUEVO: Botón para Gestionar Actividades -->
+            <button class="list-group-item list-group-item-action load-component-btn" data-component="actividades-admin" data-lang-key="manageActivities">
+                <i class="fas fa-running me-2"></i> Gestionar Actividades
+            </button>
+        </div>
+
+        <div class="d-grid gap-2 mt-5">
+            <button id="logoutBtn" class="btn btn-danger btn-lg" data-lang-key="logoutButton">Cerrar Sesión</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        applyTranslations();
+
+        // Función para cargar las estadísticas del dashboard
+        async function loadDashboardStats() {
+            console.log("DEBUG dashboard-admin.html: Cargando estadísticas del dashboard...");
+            try {
+                // Obtener mascotas
+                const mascotasResponse = await window.ApiService.get('/mascotas', true);
+                let availablePets = 0;
+                if (mascotasResponse.status === 'éxito' && Array.isArray(mascotasResponse.data)) {
+                    availablePets = mascotasResponse.data.filter(mascota => mascota.estado === 'activo').length;
+                    $('#availablePetsCount').text(availablePets);
+                    console.log(`DEBUG dashboard-admin.html: Mascotas Disponibles (contadas): ${availablePets}`);
+                } else {
+                    console.error("ERROR dashboard-admin.html: Fallo al cargar mascotas para estadísticas:", mascotasResponse.message);
+                    $('#availablePetsCount').text('Error');
+                }
+
+                // Obtener solicitudes de adopción
+                const solicitudesResponse = await window.ApiService.get('/solicitudes-adopcion', true);
+                let pendingRequests = 0;
+                let completedAdoptions = 0;
+                if ((solicitudesResponse.status === 'éxito' || solicitudesResponse.status === 'success') && Array.isArray(solicitudesResponse.data)) {
+                    pendingRequests = solicitudesResponse.data.filter(solicitud => solicitud.estado_solicitud === 'Pendiente').length;
+                    completedAdoptions = solicitudesResponse.data.filter(solicitud => solicitud.estado_solicitud === 'Aprobada').length;
+                    
+                    $('#pendingRequestsCount').text(pendingRequests);
+                    $('#completedAdoptionsCount').text(completedAdoptions);
+                    console.log(`DEBUG dashboard-admin.html: Solicitudes Pendientes (contadas): ${pendingRequests}, Adopciones Completadas (contadas): ${completedAdoptions}`);
+                } else {
+                    console.error("ERROR dashboard-admin.html: Fallo al cargar solicitudes para estadísticas:", solicitudesResponse.message);
+                    $('#pendingRequestsCount').text('Error');
+                    $('#completedAdoptionsCount').text('Error');
+                }
+
+            } catch (error) {
+                console.error("ERROR dashboard-admin.html: Fallo general al cargar estadísticas del dashboard:", error);
+                $('#availablePetsCount').text('Error');
+                $('#pendingRequestsCount').text('Error');
+                $('#completedAdoptionsCount').text('Error');
+                Swal.fire('Error', translations[currentLanguage].communicationError || 'Error de comunicación al cargar las estadísticas.', 'error');
+            }
+        }
+
+        // Manejador para el botón de cerrar sesión
+        $('#logoutBtn').on('click', function() {
+            console.log("DEBUG: Clic en botón 'Cerrar Sesión' (Admin Dashboard).");
+            if (typeof window.AuthService !== 'undefined') {
+                window.AuthService.logoutUser();
+            } else {
+                console.error("ERROR: AuthService no está definido al intentar cerrar sesión.");
+                Swal.fire({
+                    icon: 'error',
+                    title: translations[currentLanguage].generalError,
+                    text: 'No se pudo cerrar la sesión. Recarga la página.'
+                });
+            }
+        });
+
+        // Manejador genérico para botones que cargan componentes
+        $(document).off('click', '.load-component-btn').on('click', '.load-component-btn', function(e) {
+            e.preventDefault();
+            const componentToLoad = $(this).data('component');
+            console.log(`DEBUG: Clic en botón para cargar componente: ${componentToLoad} (Admin Dashboard).`);
+            if (typeof window.loadComponent === 'function') {
+                window.loadComponent(componentToLoad);
+            } else {
+                console.error("ERROR: window.loadComponent no está definido.");
+                Swal.fire({
+                    icon: 'error',
+                    title: translations[currentLanguage].generalError,
+                    text: 'Error interno: La función de carga de componentes no está disponible.'
+                });
+            }
+        });
+
+        // Cargar las estadísticas cuando el dashboard se inicialice
+        $(document).ready(function() {
+            loadDashboardStats();
+        });
+
+    })();
+</script>

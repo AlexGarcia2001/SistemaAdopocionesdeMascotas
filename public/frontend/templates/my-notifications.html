@@ -1,0 +1,286 @@
+<!-- public/frontend/templates/my-notifications.html -->
+<div class="row justify-content-center">
+    <div class="col-md-10 col-lg-8">
+        <h2 class="text-center mb-4" data-lang-key="myNotificationsTitle">Mis Notificaciones</h2>
+        
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <button id="backToDashboardBtn" class="btn btn-secondary btn-sm" data-lang-key="backToDashboard">Volver al Panel</button>
+            <button id="markAllAsReadBtn" class="btn btn-info btn-sm" data-lang-key="markAllAsRead">Marcar todas como leídas</button>
+        </div>
+
+        <div id="notificationsList" class="list-group">
+            <!-- Las notificaciones se cargarán aquí dinámicamente -->
+            <div class="text-center text-muted p-4" id="loadingNotifications" data-lang-key="loadingNotifications">Cargando notificaciones...</div>
+            <div class="text-center text-muted p-4" id="noNotifications" style="display: none;" data-lang-key="noNotifications">No tienes notificaciones.</div>
+            <div class="alert alert-danger text-center" role="alert" id="errorLoadingNotifications" style="display: none;" data-lang-key="errorLoadingNotifications">Error al cargar las notificaciones.</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Envuelve todo el script en una IIFE para crear un ámbito aislado
+    (function() {
+        let isMyNotificationsScriptInitialized = false; // Esta bandera ahora es local a esta IIFE
+
+        function initializeMyNotificationsScript() {
+            console.log("DEBUG my-notifications.html: initializeMyNotificationsScript() called.");
+            if (isMyNotificationsScriptInitialized) {
+                console.log("DEBUG my-notifications.html: Script ya inicializado, recargando datos.");
+                loadNotifications(); // Si ya está inicializado, solo recargamos los datos
+                return;
+            }
+
+            isMyNotificationsScriptInitialized = true;
+            console.log("DEBUG my-notifications.html: Iniciando carga del script y esperando al DOM.");
+            applyTranslations(); // Aplicar traducciones
+
+            const notificationsList = $('#notificationsList');
+            const loadingNotifications = $('#loadingNotifications');
+            const noNotifications = $('#noNotifications');
+            const errorLoadingNotifications = $('#errorLoadingNotifications');
+            const markAllAsReadBtn = $('#markAllAsReadBtn');
+
+            let currentUserId = null;
+
+            // Función para cargar notificaciones
+            async function loadNotifications() {
+                loadingNotifications.show();
+                noNotifications.hide();
+                errorLoadingNotifications.hide(); 
+                notificationsList.find('.list-group-item').remove(); 
+
+                console.log("DEBUG my-notifications.html: Entrando a loadNotifications."); 
+                console.log("DEBUG my-notifications.html: Estado inicial de elementos: loading visible, no hidden, error hidden."); 
+
+                if (typeof window.AuthService === 'undefined' || typeof window.ApiService === 'undefined') {
+                    console.error("ERROR my-notifications.html: AuthService o ApiService no están definidos.");
+                    errorLoadingNotifications.show().text(translations[currentLanguage].errorLoadingNotifications || 'Error al cargar las notificaciones.');
+                    loadingNotifications.hide();
+                    return;
+                }
+
+                const currentUser = window.AuthService.getUserData();
+                if (!currentUser || !currentUser.id_usuario) {
+                    console.error("ERROR my-notifications.html: No se pudo obtener el ID del usuario autenticado.");
+                    errorLoadingNotifications.show().text(translations[currentLanguage].accessDenied || 'Acceso denegado. Usuario no autenticado.');
+                    loadingNotifications.hide();
+                    return;
+                }
+                currentUserId = currentUser.id_usuario;
+                console.log(`DEBUG my-notifications.html: Usuario autenticado con ID: ${currentUserId}. Preparando llamada a la API.`); 
+
+                try {
+                    console.log("DEBUG my-notifications.html: Haciendo llamada a la API: GET /notificaciones"); 
+                    const response = await window.ApiService.get(`/notificaciones`, true); 
+                    console.log("DEBUG my-notifications.html: API call completed. Response:", response); 
+
+                    loadingNotifications.hide(); 
+
+                    if (response.status === 'success' || response.status === 'éxito') {
+                        console.log("DEBUG my-notifications.html: API response status is success."); 
+                        const notifications = response.data || [];
+                        if (notifications.length > 0) {
+                            console.log(`DEBUG my-notifications.html: Se encontraron ${notifications.length} notificaciones.`); 
+                            notifications.forEach(notif => {
+                                const isRead = notif.leida === 1;
+                                const notificationClass = isRead ? 'bg-light text-muted' : 'bg-primary text-white'; 
+                                const readStatusText = isRead ? (translations[currentLanguage].readStatus || 'Leída') : (translations[currentLanguage].unreadStatus || 'No Leída');
+                                
+                                const date = new Date(notif.fecha_hora);
+                                const formattedDate = date.toLocaleDateString(currentLanguage, {
+                                    year: 'numeric', month: 'long', day: 'numeric',
+                                    hour: '2-digit', minute: '2-digit'
+                                });
+
+                                const notificationItem = `
+                                    <div class="list-group-item d-flex justify-content-between align-items-start ${notificationClass} rounded-3 mb-2 shadow-sm" data-id="${notif.id_notificacion}" data-read="${notif.leida}">
+                                        <div class="ms-2 me-auto">
+                                            <div class="fw-bold">${notif.mensaje}</div>
+                                            <small class="text-muted">${formattedDate}</small>
+                                        </div>
+                                        <span class="badge bg-secondary rounded-pill me-2">${readStatusText}</span>
+                                        ${!isRead ? `<button class="btn btn-sm btn-outline-success mark-as-read-btn" data-id="${notif.id_notificacion}" data-lang-key="markAsReadBtn">Marcar como leída</button>` : ''}
+                                        ${isRead ? `<button class="btn btn-sm btn-outline-danger delete-notification-btn ms-2" data-id="${notif.id_notificacion}" data-lang-key="deleteBtn">Eliminar</button>` : ''}
+                                    </div>
+                                `;
+                                notificationsList.append(notificationItem);
+                            });
+                            const unreadCount = notifications.filter(n => n.leida === 0).length;
+                            if (unreadCount > 0) {
+                                markAllAsReadBtn.show();
+                            } else {
+                                markAllAsReadBtn.hide();
+                            }
+                        } else {
+                            console.log("DEBUG my-notifications.html: No notifications found in response data."); 
+                            noNotifications.show();
+                            markAllAsReadBtn.hide();
+                        }
+                    } else {
+                        console.log("DEBUG my-notifications.html: API response status is NOT success or éxito. Status:", response.status); 
+                        errorLoadingNotifications.show().text(response.message || translations[currentLanguage].errorLoadingNotifications || 'Error al cargar las notificaciones.');
+                    }
+                } catch (error) {
+                    console.error("ERROR my-notifications.html: Caught error during API call or processing:", error); 
+                    errorLoadingNotifications.show().text(translations[currentLanguage].communicationError || 'Error de comunicación con el servidor.');
+                }
+            }
+
+            // --- Event Listeners ---
+
+            // Volver al panel
+            $(document).off('click.myNotificationsBack').on('click.myNotificationsBack', '#backToDashboardBtn', function() {
+                window.loadComponent('dashboard-user');
+            });
+
+            // Marcar una notificación individual como leída
+            $(document).off('click.myNotificationsRead').on('click.myNotificationsRead', '.mark-as-read-btn', async function() {
+                const notificationId = $(this).data('id');
+                console.log(`DEBUG my-notifications.html: Marcando notificación ${notificationId} como leída.`);
+                try {
+                    const response = await window.ApiService.put(`/notificaciones/${notificationId}/leida`, {}, true);
+                    if (response.status === 'success' || response.status === 'éxito') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: translations[currentLanguage].successTitle || 'Éxito',
+                            text: response.message || (translations[currentLanguage].notificationMarkedRead || 'Notificación marcada como leída.')
+                        });
+                        loadNotifications(); // Recargar la lista para reflejar el cambio
+                        if (window.updateUnreadNotificationsCount) {
+                            window.updateUnreadNotificationsCount();
+                        }
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: translations[currentLanguage].errorTitle || 'Error',
+                            text: response.message || (translations[currentLanguage].errorMarkingRead || 'Error al marcar como leída.')
+                        });
+                    }
+                } catch (error) {
+                    console.error("ERROR my-notifications.html: Fallo al marcar notificación como leída:", error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: translations[currentLanguage].communicationError || 'Error de comunicación',
+                        text: translations[currentLanguage].errorMarkingRead || 'Error al marcar como leída.'
+                    });
+                }
+            });
+
+            // Marcar todas las notificaciones como leídas
+            $(document).off('click.myNotificationsMarkAll').on('click.myNotificationsMarkAll', '#markAllAsReadBtn', async function() {
+                console.log(`DEBUG my-notifications.html: Marcando todas las notificaciones como leídas para usuario ${currentUserId}.`);
+                Swal.fire({
+                    title: translations[currentLanguage].confirmMarkAllReadTitle || '¿Marcar todas como leídas?',
+                    text: translations[currentLanguage].confirmMarkAllReadText || 'Esto marcará todas tus notificaciones no leídas como leídas.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#3085d6',
+                    cancelButtonColor: '#d33',
+                    confirmButtonText: translations[currentLanguage].yes || 'Sí',
+                    cancelButtonText: translations[currentLanguage].no || 'No'
+                }).then(async (result) => {
+                    if (result.isConfirmed) {
+                        try {
+                            // Usar la ruta correcta con /usuario/
+                            const response = await window.ApiService.put(`/notificaciones/usuario/${currentUserId}/marcar-leidas`, {}, true);
+                            if (response.status === 'success' || response.status === 'éxito') {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: translations[currentLanguage].successTitle || 'Éxito',
+                                    text: response.message || (translations[currentLanguage].allNotificationsMarkedRead || 'Todas las notificaciones marcadas como leídas.')
+                                });
+                                loadNotifications(); // Recargar la lista
+                                if (window.updateUnreadNotificationsCount) {
+                                    window.updateUnreadNotificationsCount(); 
+                                }
+                            } else {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: translations[currentLanguage].errorTitle || 'Error',
+                                    text: response.message || (translations[currentLanguage].errorMarkingAllRead || 'Error al marcar todas como leídas.')
+                                });
+                            }
+                        } catch (error) {
+                            console.error("ERROR my-notifications.html: Fallo al marcar todas las notificaciones como leídas:", error);
+                            Swal.fire({
+                                icon: 'error',
+                                title: translations[currentLanguage].communicationError || 'Error de comunicación',
+                                text: translations[currentLanguage].errorMarkingAllRead || 'Error al marcar todas como leídas.'
+                            });
+                        }
+                    }
+                });
+            });
+
+            // Eliminar una notificación
+            $(document).off('click.myNotificationsDelete').on('click.myNotificationsDelete', '.delete-notification-btn', async function() {
+                const notificationId = $(this).data('id');
+                console.log(`DEBUG my-notifications.html: Eliminando notificación ${notificationId}.`);
+
+                Swal.fire({
+                    title: translations[currentLanguage].confirmDeleteTitle || '¿Estás seguro?',
+                    text: translations[currentLanguage].confirmDeleteNotificationText || 'Esta acción eliminará la notificación de forma permanente.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: translations[currentLanguage].yesDelete || 'Sí, eliminar',
+                    cancelButtonText: translations[currentLanguage].cancel || 'Cancelar'
+                }).then(async (result) => {
+                    if (result.isConfirmed) {
+                        try {
+                            const response = await window.ApiService.remove(`/notificaciones/${notificationId}`, true); 
+                            if (response.status === 'success' || response.status === 'éxito') {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: translations[currentLanguage].successTitle || 'Éxito',
+                                    text: response.message || (translations[currentLanguage].notificationDeleted || 'Notificación eliminada exitosamente.')
+                                });
+                                loadNotifications(); // Recargar la lista para reflejar el cambio
+                                if (window.updateUnreadNotificationsCount) {
+                                    window.updateUnreadNotificationsCount(); // Actualizar conteo en dashboard
+                                }
+                            } else {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: translations[currentLanguage].errorTitle || 'Error',
+                                    text: response.message || (translations[currentLanguage].errorDeletingNotification || 'Error al eliminar la notificación.')
+                                });
+                            }
+                        } catch (error) {
+                            console.error("ERROR my-notifications.html: Fallo al eliminar notificación:", error);
+                            Swal.fire({
+                                icon: 'error',
+                                title: translations[currentLanguage].communicationError || 'Error de comunicación',
+                                text: translations[currentLanguage].errorDeletingNotification || 'Error al eliminar la notificación.'
+                            });
+                        }
+                    }
+                });
+            });
+
+            // --- Llamada Inicial ---
+            loadNotifications(); // ¡Esta línea es crucial y fue reinsertada!
+        }
+
+        // Ejecutar la función de inicialización cuando el DOM esté listo
+        $(document).ready(function() {
+            console.log("DEBUG my-notifications.html: DOM ready. Calling initializeMyNotificationsScript().");
+            initializeMyNotificationsScript();
+        });
+
+        // Limpieza de eventos al descargar el componente
+        $(document).on('componentUnloaded.myNotificationsCleanup', function(event, unloadedComponentName) {
+            if (unloadedComponentName === 'my-notifications') {
+                console.log("DEBUG my-notifications.html: ¡componentUnloaded para my-notifications detectado! Limpiando listeners y reseteando bandera.");
+                $(document).off('.myNotificationsBack');
+                $(document).off('.myNotificationsRead');
+                $(document).off('.myNotificationsMarkAll');
+                $(document).off('.myNotificationsDelete'); 
+                isMyNotificationsScriptInitialized = false; // Restablecer la bandera
+                $(document).off('componentUnloaded.myNotificationsCleanup');
+                console.log("DEBUG my-notifications.html: Event listeners de my-notifications limpiados.");
+            }
+        });
+    })(); // Fin de la IIFE
+</script>

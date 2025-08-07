@@ -1,0 +1,243 @@
+<!-- public/frontend/templates/my-adoption-requests.html -->
+<div class="row justify-content-center">
+    <div class="col-md-10 col-lg-8">
+        <h2 class="text-center mb-4" data-lang-key="myAdoptionRequestsTitle">Mis Solicitudes de Adopción</h2>
+        
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <button id="backToDashboardBtn" class="btn btn-secondary btn-sm" data-lang-key="backToDashboard">Volver al Panel</button>
+        </div>
+
+        <div id="adoptionRequestsList" class="list-group">
+            <!-- Las solicitudes de adopción se cargarán aquí dinámicamente -->
+            <div class="text-center text-muted p-4" id="loadingRequests" data-lang-key="loadingRequests">Cargando solicitudes...</div>
+            <div class="text-center text-muted p-4" id="noRequests" style="display: none;" data-lang-key="noRequests">No tienes solicitudes de adopción.</div>
+            <div class="alert alert-danger text-center" role="alert" id="errorLoadingRequests" style="display: none;" data-lang-key="errorLoadingRequests">Error al cargar las solicitudes.</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Envuelve todo el script en una IIFE para crear un ámbito aislado
+    (function() {
+        let isMyAdoptionRequestsScriptInitialized = false; // Esta bandera ahora es local a esta IIFE
+
+        function initializeMyAdoptionRequestsScript() {
+            if (isMyAdoptionRequestsScriptInitialized) {
+                console.log("DEBUG my-adoption-requests.html: Script ya inicializado, recargando datos.");
+                loadAdoptionRequests(); // Si ya está inicializado, solo recargamos los datos
+                return;
+            }
+
+            isMyAdoptionRequestsScriptInitialized = true;
+            console.log("DEBUG my-adoption-requests.html: Iniciando carga del script y esperando al DOM.");
+            applyTranslations(); // Aplicar traducciones
+
+            const adoptionRequestsList = $('#adoptionRequestsList');
+            const loadingRequests = $('#loadingRequests');
+            const noRequests = $('#noRequests');
+            const errorLoadingRequests = $('#errorLoadingRequests');
+
+            // Función para cargar solicitudes de adopción
+            async function loadAdoptionRequests() {
+                loadingRequests.show();
+                noRequests.hide();
+                errorLoadingRequests.hide();
+                // Esta línea es crucial para limpiar la lista antes de añadir nuevos elementos
+                adoptionRequestsList.find('.list-group-item').remove(); 
+
+                if (typeof window.AuthService === 'undefined' || typeof window.ApiService === 'undefined') {
+                    console.error("ERROR my-adoption-requests.html: AuthService o ApiService no están definidos.");
+                    errorLoadingRequests.show().text(translations[currentLanguage].errorLoadingRequests || 'Error al cargar las solicitudes.');
+                    loadingRequests.hide();
+                    return;
+                }
+
+                const currentUser = window.AuthService.getUserData();
+                if (!currentUser || !currentUser.id_usuario) {
+                    console.error("ERROR my-adoption-requests.html: No se pudo obtener el ID del usuario autenticado.");
+                    errorLoadingRequests.show().text(translations[currentLanguage].accessDenied || 'Acceso denegado. Usuario no autenticado.');
+                    loadingRequests.hide();
+                    return;
+                }
+                const userId = currentUser.id_usuario;
+
+                try {
+                    console.log(`DEBUG my-adoption-requests.html: Fetching adoption requests for user ${userId}.`);
+                    const response = await window.ApiService.get(`/solicitudes-adopcion/usuario/${userId}`, true);
+                    console.log("DEBUG my-adoption-requests.html: API response for adoption requests:", response);
+
+                    loadingRequests.hide();
+
+                    if (response.status === 'success' || response.status === 'éxito') {
+                        const requests = response.data || [];
+                        if (requests.length > 0) {
+                            requests.forEach(request => {
+                                let statusClass = '';
+                                let statusText = request.estado_solicitud; // Por defecto
+
+                                // Asignar clases y traducir estado
+                                switch (request.estado_solicitud) {
+                                    case 'Pendiente':
+                                        statusClass = 'bg-warning text-dark';
+                                        statusText = translations[currentLanguage].statusPending || 'Pendiente';
+                                        break;
+                                    case 'Aprobada':
+                                        statusClass = 'bg-success';
+                                        statusText = translations[currentLanguage].statusApproved || 'Aprobada';
+                                        break;
+                                    case 'Rechazada':
+                                        statusClass = 'bg-danger';
+                                        statusText = translations[currentLanguage].statusRejected || 'Rechazada';
+                                        break;
+                                    default:
+                                        statusClass = 'bg-secondary';
+                                        statusText = translations[currentLanguage].statusUnknown || 'Desconocido';
+                                        break;
+                                }
+
+                                // Formatear la fecha
+                                const date = new Date(request.fecha_solicitud);
+                                const formattedDate = date.toLocaleDateString(currentLanguage, {
+                                    year: 'numeric', month: 'long', day: 'numeric'
+                                });
+
+                                // Usamos 'request.motivo' para la visualización del listado
+                                const motivoDisplay = request.motivo 
+                                    ? `${request.motivo.substring(0, 100)}${request.motivo.length > 100 ? '...' : ''}`
+                                    : (translations[currentLanguage].noMotivationProvided || 'No se proporcionó motivo.');
+
+                                const requestItem = `
+                                    <div class="list-group-item d-flex justify-content-between align-items-start rounded-3 mb-2 shadow-sm">
+                                        <div class="ms-2 me-auto">
+                                            <!-- CORRECCIÓN FINAL: Eliminado el dos puntos del HTML en la lista -->
+                                            <div class="fw-bold">${translations[currentLanguage].petNameLabel || 'Mascota'} ${request.mascota_nombre || 'N/A'}</div> 
+                                            <small class="text-muted">${translations[currentLanguage].requestDateLabel || 'Fecha de Solicitud'} ${formattedDate}</small><br>
+                                            <small class="text-muted">${translations[currentLanguage].motivationLabel || 'Motivo'}: ${motivoDisplay}</small>
+                                        </div>
+                                        <span class="badge ${statusClass} rounded-pill me-2">${statusText}</span>
+                                        <button class="btn btn-sm btn-outline-info view-details-btn" data-id="${request.id_solicitud}" data-lang-key="viewDetailsBtn">Ver Detalles</button>
+                                    </div>
+                                `;
+                                adoptionRequestsList.append(requestItem);
+                            });
+                        } else {
+                            noRequests.show();
+                        }
+                    } else {
+                        errorLoadingRequests.show().text(response.message || translations[currentLanguage].errorLoadingRequests || 'Error al cargar las solicitudes.');
+                    }
+                } catch (error) {
+                    console.error("ERROR my-adoption-requests.html: Fallo al cargar solicitudes de adopción:", error);
+                    errorLoadingRequests.show().text(translations[currentLanguage].communicationError || 'Error de comunicación con el servidor.');
+                }
+            }
+
+            // --- Event Listeners ---
+
+            // Volver al panel
+            $(document).off('click.myAdoptionRequestsBack').on('click.myAdoptionRequestsBack', '#backToDashboardBtn', function() {
+                window.loadComponent('dashboard-user');
+            });
+
+            // Ver detalles de una solicitud
+            $(document).off('click.myAdoptionRequestsDetails').on('click.myAdoptionRequestsDetails', '.view-details-btn', async function() {
+                const requestId = $(this).data('id');
+                console.log(`DEBUG my-adoption-requests.html: Fetching details for request ID: ${requestId}.`);
+                Swal.fire({
+                    title: translations[currentLanguage].loadingTitle || 'Cargando...',
+                    text: translations[currentLanguage].loadingDetailsText || 'Obteniendo detalles de la solicitud...',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                try {
+                    // Llamada a la API para obtener los detalles de una solicitud específica
+                    const response = await window.ApiService.get(`/solicitudes-adopcion/${requestId}`, true);
+                    console.log("DEBUG my-adoption-requests.html: API response for request details:", response);
+                    console.log("DEBUG my-adoption-requests.html: Objeto de solicitud completo recibido:", response.data); // CRÍTICO: Mantiene el log para depuración
+
+                    if (response.status === 'success' || response.status === 'éxito' && response.data) {
+                        const request = response.data;
+                        const petName = request.mascota_nombre || 'N/A';
+                        const petId = request.id_mascota || 'N/A';
+                        const applicantName = request.solicitante_nombre_completo || 'N/A';
+                        const applicantId = request.id_usuario || 'N/A';
+                        const requestDate = new Date(request.fecha_solicitud).toLocaleDateString(currentLanguage, {
+                            year: 'numeric', month: 'long', day: 'numeric'
+                        });
+                        const requestStatus = translations[currentLanguage][`status${request.estado_solicitud}`] || request.estado_solicitud;
+
+                        // --- Comentarios Iniciales del Solicitante (solo el motivo) ---
+                        const initialComments = request.motivo || (translations[currentLanguage].notProvided || 'No proporcionado');
+                        
+                        // --- Observaciones del Administrador (¡CORRECCIÓN AQUÍ!) ---
+                        // Ahora busca directamente 'request.observaciones'
+                        console.log("DEBUG my-adoption-requests.html: Valor de request.observaciones:", request.observaciones);
+                        const adminObservations = request.observaciones || (translations[currentLanguage].noAdminObservations || 'No hay observaciones del administrador.');
+
+                        // Construir el HTML para el SweetAlert con los detalles simplificados
+                        const detailsHtml = `
+                            <div class="text-start">
+                                <!-- Ya no se añade el dos puntos en el HTML, depende de lang.js -->
+                                <p><strong>${translations[currentLanguage].requestIdLabel || 'ID Solicitud'}</strong> ${request.id_solicitud}</p>
+                                <p><strong>${translations[currentLanguage].petNameLabel || 'Mascota'}</strong> ${petName} (ID: ${petId})</p>
+                                <p><strong>${translations[currentLanguage].applicantNameLabel || 'Solicitante'}</strong> ${applicantName} (ID: ${applicantId})</p>
+                                <p><strong>${translations[currentLanguage].requestDateLabel || 'Fecha de Solicitud'}</strong> ${requestDate}</p>
+                                <p><strong>${translations[currentLanguage].statusLabel || 'Estado'}</strong> <span class="badge bg-secondary">${requestStatus}</span></p>
+                                <hr>
+                                <h4>${translations[currentLanguage].initialCommentsTitle || 'Comentarios Iniciales del Solicitante'}</h4>
+                                <p>${initialComments}</p>
+                                <hr>
+                                <h4>${translations[currentLanguage].adminObservationsTitle || 'Observaciones del Administrador'}</h4>
+                                <p>${adminObservations}</p>
+                            </div>
+                        `;
+
+                        Swal.fire({
+                            title: translations[currentLanguage].requestDetailsTitle || 'Detalles de Solicitud',
+                            html: detailsHtml,
+                            icon: 'info',
+                            confirmButtonText: translations[currentLanguage].closeBtn || 'Cerrar'
+                        });
+
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: translations[currentLanguage].errorTitle || 'Error',
+                            text: response.message || (translations[currentLanguage].errorFetchingDetails || 'Error al obtener los detalles de la solicitud.')
+                        });
+                    }
+                } catch (error) {
+                    console.error("ERROR my-adoption-requests.html: Fallo al obtener detalles de la solicitud:", error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: translations[currentLanguage].communicationError || 'Error de comunicación',
+                        text: translations[currentLanguage].errorFetchingDetails || 'Error al obtener los detalles de la solicitud.'
+                    });
+                }
+            });
+
+            // Limpieza de eventos al descargar el componente
+            $(document).on('componentUnloaded.myAdoptionRequestsCleanup', function(event, unloadedComponentName) {
+                if (unloadedComponentName === 'my-adoption-requests') {
+                    console.log("DEBUG my-adoption-requests.html: ¡componentUnloaded para my-adoption-requests detectado! Limpiando listeners y reseteando bandera.");
+                    $(document).off('.myAdoptionRequestsBack');
+                    $(document).off('.myAdoptionRequestsDetails');
+                    isMyAdoptionRequestsScriptInitialized = false; // Restablecer la bandera
+                    $(document).off('componentUnloaded.myAdoptionRequestsCleanup');
+                    console.log("DEBUG my-adoption-requests.html: Event listeners de my-adoption-requests limpiados.");
+                }
+            });
+
+            // Llamada Inicial al cargar el DOM
+            loadAdoptionRequests();
+        }
+
+        // Ejecutar la función de inicialización cuando el DOM esté listo
+        $(document).ready(function() {
+            initializeMyAdoptionRequestsScript();
+        });
+    })(); // Fin de la IIFE
+</script>

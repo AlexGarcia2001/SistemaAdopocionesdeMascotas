@@ -1,0 +1,398 @@
+<!-- public/frontend/templates/actividades-admin.html -->
+<div class="row justify-content-center">
+    <div class="col-md-12 col-lg-10">
+        <h2 class="text-center mb-4" data-lang-key="activitiesManagementTitle">Gestión de Actividades</h2>
+        
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <button id="backToAdminDashboardBtn" class="btn btn-secondary btn-sm" data-lang-key="backToDashboard">Volver al Panel</button>
+            <button id="addActivityBtn" class="btn btn-primary" data-lang-key="addActivity">Añadir Actividad</button>
+        </div>
+
+        <div class="alert alert-info text-center" role="alert" id="loadingMessage" data-lang-key="loadingActivities">Cargando actividades...</div>
+        <div class="alert alert-danger text-center" role="alert" id="errorMessage" style="display: none;" data-lang-key="errorLoadingActivities">Error al cargar las actividades.</div>
+        <div class="alert alert-warning text-center" role="alert" id="noDataMessage" style="display: none;" data-lang-key="noActivitiesFound">No se encontraron actividades.</div>
+
+        <div class="table-responsive">
+            <table class="table table-striped table-hover shadow-sm rounded-3 overflow-hidden">
+                <thead class="bg-primary text-white">
+                    <tr>
+                        <th data-lang-key="tableHeaderId">ID</th>
+                        <th data-lang-key="tableHeaderActivityName">Nombre</th>
+                        <th data-lang-key="tableHeaderDescription">Descripción</th>
+                        <th data-lang-key="tableHeaderDateTime">Fecha y Hora</th>
+                        <th data-lang-key="tableHeaderShelter">Refugio</th>
+                        <th data-lang-key="tableHeaderActivityType">Tipo</th> <!-- Restaurado -->
+                        <th data-lang-key="tableHeaderStatus">Estado</th> <!-- Restaurado -->
+                        <th data-lang-key="tableHeaderActions">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="activitiesTableBody">
+                    <!-- Las actividades se cargarán aquí dinámicamente -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Añadir/Editar Actividad -->
+<div class="modal fade" id="activityModal" tabindex="-1" aria-labelledby="activityModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="activityModalLabel" data-lang-key="addActivityTitle">Añadir Nueva Actividad</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="activityForm">
+                    <input type="hidden" id="activityId">
+
+                    <div class="mb-3">
+                        <label for="nombreActividad" class="form-label" data-lang-key="formLabelActivityName">Nombre de la Actividad:</label>
+                        <input type="text" class="form-control" id="nombreActividad" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="descripcion" class="form-label" data-lang-key="formLabelDescription">Descripción:</label>
+                        <textarea class="form-control" id="descripcion" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="fechaHora" class="form-label" data-lang-key="formLabelDateTime">Fecha y Hora:</label>
+                        <input type="datetime-local" class="form-control" id="fechaHora" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="idRefugio" class="form-label" data-lang-key="formLabelShelter">Refugio (Opcional):</label>
+                        <select class="form-select" id="idRefugio">
+                            <option value="" data-lang-key="selectOptionalShelter">Selecciona un refugio (opcional)...</option>
+                            <!-- Opciones cargadas dinámicamente -->
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="tipoActividad" class="form-label" data-lang-key="formLabelActivityType">Tipo de Actividad:</label>
+                        <select class="form-select" id="tipoActividad" required>
+                            <option value="" data-lang-key="selectActivityType">Selecciona un tipo...</option>
+                            <option value="Evento" data-lang-key="activityTypeEvent">Evento</option>
+                            <option value="Mantenimiento" data-lang-key="activityTypeMaintenance">Mantenimiento</option>
+                            <option value="Voluntariado" data-lang-key="activityTypeVolunteering">Voluntariado</option>
+                            <option value="Administrativa" data-lang-key="activityTypeAdministrative">Administrativa</option>
+                            <option value="Otro" data-lang-key="activityTypeOther">Otro</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="estado" class="form-label" data-lang-key="formLabelStatus">Estado:</label>
+                        <select class="form-select" id="estado" required>
+                            <option value="" data-lang-key="selectStatus">Selecciona un estado...</option>
+                            <option value="Pendiente" data-lang-key="statusPending">Pendiente</option>
+                            <option value="En Progreso" data-lang-key="statusInProgress">En Progreso</option>
+                            <option value="Completada" data-lang-key="statusCompleted">Completada</option>
+                            <option value="Cancelada" data-lang-key="statusCanceled">Cancelada</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" data-lang-key="saveActivity">Guardar Actividad</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        let isActivitiesAdminScriptInitialized = false;
+        let allRefugios = []; // Para el selector de refugios
+
+        function initializeActivitiesAdminScript() {
+            if (isActivitiesAdminScriptInitialized) {
+                console.log("DEBUG actividades-admin.html: Script ya inicializado, no se reinicializa.");
+                loadActivities(); // Solo recargar datos si ya está inicializado
+                return;
+            }
+
+            isActivitiesAdminScriptInitialized = true;
+            console.log("DEBUG actividades-admin.html: Iniciando carga del script de actividades-admin y esperando al DOM.");
+            applyTranslations();
+
+            const loadingMessage = $('#loadingMessage');
+            const errorMessage = $('#errorMessage');
+            const noDataMessage = $('#noDataMessage');
+            const activitiesTableBody = $('#activitiesTableBody');
+            const activityModal = new bootstrap.Modal(document.getElementById('activityModal'));
+
+            // Función para cargar refugios para el selector del formulario
+            async function loadFormSelectsData() {
+                console.log("DEBUG actividades-admin.html: Cargando datos para selectores de formulario (Refugios)...");
+                try {
+                    const refugiosResponse = await window.ApiService.get('/refugios', true); // Obtener todos los refugios
+                    
+                    if ((refugiosResponse.status === 'success' || refugiosResponse.status === 'éxito') && Array.isArray(refugiosResponse.data)) {
+                        allRefugios = refugiosResponse.data;
+                        const refugioSelect = $('#idRefugio');
+                        refugioSelect.empty().append($('<option>', {
+                            value: '',
+                            text: translations[currentLanguage].selectOptionalShelter || 'Selecciona un refugio (opcional)...'
+                        }));
+                        allRefugios.forEach(refugio => {
+                            refugioSelect.append($('<option>', {
+                                value: refugio.id_refugio,
+                                text: `${refugio.nombre}` // Asumiendo que el refugio tiene un campo 'nombre'
+                            }));
+                        });
+                        console.log("DEBUG actividades-admin.html: Refugios cargados para el selector.");
+                    } else {
+                        console.warn("ADVERTENCIA actividades-admin.html: Fallo al cargar refugios para el selector (opcional):", refugiosResponse.message);
+                    }
+
+                } catch (error) {
+                    console.error("ERROR actividades-admin.html: Fallo general al cargar datos para selectores:", error);
+                    Swal.fire('Error', translations[currentLanguage].communicationError || 'Error de comunicación al cargar datos para el formulario.', 'error');
+                }
+            }
+
+            // Función para cargar las actividades y llenar la tabla
+            async function loadActivities() {
+                console.log("DEBUG actividades-admin.html: Cargando actividades...");
+                loadingMessage.show();
+                errorMessage.hide();
+                noDataMessage.hide();
+                activitiesTableBody.empty();
+
+                try {
+                    const response = await window.ApiService.get('/actividades', true); // Asumiendo endpoint /actividades
+                    console.log("DEBUG actividades-admin.html: Respuesta de API para actividades:", response);
+
+                    loadingMessage.hide();
+
+                    if ((response.status === 'success' || response.status === 'éxito') && Array.isArray(response.data) && response.data.length > 0) {
+                        response.data.forEach(actividad => {
+                            // Buscar el nombre del refugio por su ID
+                            const refugio = allRefugios.find(r => r.id_refugio === actividad.id_refugio);
+                            const nombreRefugio = refugio ? refugio.nombre : 'N/A'; // Asumiendo que refugio tiene 'nombre'
+
+                            // Formatear la fecha y hora para la visualización en la tabla
+                            const fechaHoraDisplay = actividad.fecha_hora ? new Date(actividad.fecha_hora).toLocaleString() : 'N/A';
+
+                            const row = `
+                                <tr>
+                                    <td>${actividad.id_actividad}</td>
+                                    <td>${actividad.nombre_actividad}</td>
+                                    <td>${actividad.descripcion || 'N/A'}</td>
+                                    <td>${fechaHoraDisplay}</td>
+                                    <td>${nombreRefugio}</td>
+                                    <td>${actividad.tipo_actividad || 'N/A'}</td> <!-- Restaurado -->
+                                    <td>${actividad.estado || 'N/A'}</td> <!-- Restaurado -->
+                                    <td>
+                                        <button class="btn btn-info btn-sm edit-activity-btn" data-id="${actividad.id_actividad}" data-lang-key="editButton"><i class="fas fa-edit"></i></button>
+                                        <button class="btn btn-danger btn-sm delete-activity-btn" data-id="${actividad.id_actividad}" data-lang-key="deleteButton"><i class="fas fa-trash-alt"></i></button>
+                                    </td>
+                                </tr>
+                            `;
+                            activitiesTableBody.append(row);
+                        });
+                    } else {
+                        noDataMessage.show();
+                    }
+                } catch (error) {
+                    console.error("ERROR actividades-admin.html: Fallo al cargar actividades:", error);
+                    errorMessage.show().text(translations[currentLanguage].errorLoadingActivities || 'Error al cargar las actividades.');
+                }
+            }
+
+            // --- Event Listeners ---
+
+            // Botón "Volver al Panel"
+            $(document).off('click.activitiesAdminBack').on('click.activitiesAdminBack', '#backToAdminDashboardBtn', function() {
+                window.loadComponent('dashboard-admin');
+            });
+
+            // Botón "Añadir Actividad"
+            $(document).off('click.activitiesAdminAdd').on('click.activitiesAdminAdd', '#addActivityBtn', async function() {
+                console.log("DEBUG actividades-admin.html: Clic en 'Añadir Actividad'.");
+                $('#activityForm')[0].reset(); // Limpiar formulario
+                $('#activityId').val(''); // Asegurar que ID esté vacío para crear
+                $('#activityModalLabel').text(translations[currentLanguage].addActivityTitle || 'Añadir Nueva Actividad');
+                await loadFormSelectsData(); // Recargar datos para los selectores
+                
+                // Establecer la fecha y hora actual por defecto al añadir una nueva actividad
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = (now.getMonth() + 1).toString().padStart(2, '0');
+                const day = now.getDate().toString().padStart(2, '0');
+                const hours = now.getHours().toString().padStart(2, '0');
+                const minutes = now.getMinutes().toString().padStart(2, '0');
+                const currentDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+                $('#fechaHora').val(currentDateTime);
+
+                activityModal.show();
+            });
+
+            // Editar Actividad
+            $(document).off('click.activitiesAdminEdit').on('click.activitiesAdminEdit', '.edit-activity-btn', async function() {
+                const id = $(this).data('id');
+                console.log(`DEBUG actividades-admin.html: Clic en 'Editar Actividad' para ID: ${id}`);
+                
+                $('#activityModalLabel').text(translations[currentLanguage].editActivityTitle || 'Editar Actividad');
+                await loadFormSelectsData(); // Cargar datos para los selectores antes de poblar el formulario
+
+                try {
+                    const response = await window.ApiService.get(`/actividades/${id}`, true); // Asumiendo endpoint /actividades/{id}
+                    if ((response.status === 'success' || response.status === 'éxito') && response.data) {
+                        const actividad = response.data;
+                        $('#activityId').val(actividad.id_actividad);
+                        $('#nombreActividad').val(actividad.nombre_actividad);
+                        $('#descripcion').val(actividad.descripcion);
+                        
+                        // Formatear la fecha y hora para el input datetime-local
+                        if (actividad.fecha_hora) {
+                            const dateObj = new Date(actividad.fecha_hora);
+                            const year = dateObj.getFullYear();
+                            const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+                            const day = dateObj.getDate().toString().padStart(2, '0');
+                            const hours = dateObj.getHours().toString().padStart(2, '0');
+                            const minutes = dateObj.getMinutes().toString().padStart(2, '0');
+                            const formattedDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+                            $('#fechaHora').val(formattedDateTime);
+                        } else {
+                            $('#fechaHora').val('');
+                        }
+
+                        $('#idRefugio').val(actividad.id_refugio || '');
+                        $('#tipoActividad').val(actividad.tipo_actividad); // Restaurado
+                        $('#estado').val(actividad.estado); // Restaurado
+
+                        activityModal.show();
+                    } else {
+                        Swal.fire('Error', response.message || translations[currentLanguage].errorFetchingActivity || 'No se pudo obtener la información de la actividad.', 'error');
+                    }
+                } catch (error) {
+                    console.error("ERROR actividades-admin.html: Fallo al obtener actividad para edición:", error);
+                    Swal.fire('Error', translations[currentLanguage].communicationError || 'Error de comunicación al obtener datos para edición.', 'error');
+                }
+            });
+
+            // Eliminar Actividad
+            $(document).off('click.activitiesAdminDelete').on('click.activitiesAdminDelete', '.delete-activity-btn', function() {
+                const id = $(this).data('id');
+                console.log(`DEBUG actividades-admin.html: Clic en 'Eliminar Actividad' para ID: ${id}`);
+
+                Swal.fire({
+                    title: translations[currentLanguage].confirmDeleteTitle || '¿Estás seguro?',
+                    text: translations[currentLanguage].confirmDeleteText || "¡No podrás revertir esto!",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: translations[currentLanguage].yesDeleteIt || 'Sí, eliminarlo!',
+                    cancelButtonText: translations[currentLanguage].cancelButton || 'Cancelar'
+                }).then(async (result) => {
+                    if (result.isConfirmed) {
+                        try {
+                            const response = await window.ApiService.remove(`/actividades/${id}`, true); // Usar .remove()
+                            
+                            if (response.status === 'success' || response.status === 'éxito') {
+                                Swal.fire(
+                                    translations[currentLanguage].deletedTitle || 'Eliminado!',
+                                    response.message || translations[currentLanguage].activityDeleted || 'La actividad ha sido eliminada.',
+                                    'success'
+                                );
+                                loadActivities(); // Recargar la tabla
+                            } else {
+                                Swal.fire(
+                                    'Error',
+                                    response.message || translations[currentLanguage].errorDeletingActivity || 'Hubo un error al eliminar la actividad.',
+                                    'error'
+                                );
+                            }
+                        } catch (error) {
+                            console.error("ERROR actividades-admin.html: Fallo al eliminar actividad:", error);
+                            Swal.fire('Error', translations[currentLanguage].communicationError || 'Error de comunicación al eliminar la actividad.', 'error');
+                        }
+                    }
+                });
+            });
+
+            // Enviar Formulario (Crear/Editar)
+            $(document).off('submit.activitiesAdminForm').on('submit.activitiesAdminForm', '#activityForm', async function(e) {
+                e.preventDefault();
+                console.log("DEBUG actividades-admin.html: Formulario de actividad enviado.");
+
+                const id = $('#activityId').val();
+                const method = id ? 'PUT' : 'POST';
+                const url = id ? `/actividades/${id}` : '/actividades'; // Asumiendo endpoint /actividades
+
+                // Formatear la fecha y hora para enviar a la API
+                const dateTimeLocalValue = $('#fechaHora').val(); // Formato: YYYY-MM-DDTHH:MM
+                // Convertir a YYYY-MM-DD HH:MM:SS (asumiendo que la API espera segundos)
+                const formattedFechaHora = dateTimeLocalValue ? `${dateTimeLocalValue.replace('T', ' ')}:00` : null;
+
+                const formData = {
+                    nombre_actividad: $('#nombreActividad').val(),
+                    descripcion: $('#descripcion').val(),
+                    fecha_hora: formattedFechaHora, // Usar el formato corregido
+                    id_refugio: $('#idRefugio').val() ? parseInt($('#idRefugio').val()) : null, // Puede ser nulo
+                    tipo_actividad: $('#tipoActividad').val(), // Restaurado
+                    estado: $('#estado').val(), // Restaurado
+                };
+
+                // Validaciones básicas (restauradas para los campos tipo y estado)
+                if (!formData.nombre_actividad || !formData.fecha_hora || !formData.tipo_actividad || !formData.estado) {
+                    Swal.fire('Advertencia', translations[currentLanguage].validationErrorText || 'Por favor, completa todos los campos obligatorios.', 'warning');
+                    return;
+                }
+
+                try {
+                    let response;
+                    if (method === 'POST') {
+                        response = await window.ApiService.post(url, formData, true);
+                    } else if (method === 'PUT') {
+                        response = await window.ApiService.put(url, formData, true);
+                    } else {
+                        throw new Error('Método HTTP no soportado para guardar actividad.');
+                    }
+                    
+                    if (response.status === 'success' || response.status === 'éxito') {
+                        Swal.fire(
+                            translations[currentLanguage].successTitle || 'Éxito!',
+                            response.message || translations[currentLanguage].activitySaved || 'Actividad guardada exitosamente.',
+                            'success'
+                        );
+                        activityModal.hide();
+                        loadActivities(); // Recargar la tabla
+                    } else {
+                        Swal.fire(
+                            'Error',
+                            response.message || translations[currentLanguage].errorSavingActivity || 'Hubo un error al guardar la actividad.',
+                            'error'
+                        );
+                    }
+                } catch (error) {
+                    console.error("ERROR actividades-admin.html: Fallo al guardar actividad:", error);
+                    Swal.fire('Error', translations[currentLanguage].communicationError || 'Error de comunicación al guardar la actividad.', 'error');
+                }
+            });
+
+            // --- Carga inicial de datos ---
+            // Para asegurar que el selector de refugios esté cargado
+            // antes de intentar cargar las actividades (ya que loadActivities lo usa para mostrar nombres)
+            loadFormSelectsData().then(() => {
+                loadActivities();
+            });
+
+            // Limpieza al descargar el componente
+            $(document).on('componentUnloaded.activitiesAdminCleanup', function(event, unloadedComponentName) {
+                if (unloadedComponentName === 'actividades-admin') {
+                    console.log("DEBUG actividades-admin.html: ¡componentUnloaded para actividades-admin detectado! Limpiando listeners.");
+                    $(document).off('.activitiesAdminBack');
+                    $(document).off('.activitiesAdminAdd');
+                    $(document).off('.activitiesAdminEdit');
+                    $(document).off('.activitiesAdminDelete');
+                    $(document).off('.activitiesAdminForm');
+                    isActivitiesAdminScriptInitialized = false;
+                    allRefugios = [];
+                    console.log("DEBUG actividades-admin.html: Event listeners de actividades-admin limpiados.");
+                }
+            });
+        }
+
+        $(document).ready(function() {
+            initializeActivitiesAdminScript();
+        });
+    })();
+</script>

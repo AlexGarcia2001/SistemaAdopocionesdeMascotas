@@ -1,0 +1,194 @@
+<!-- public/frontend/templates/refugios-map.html -->
+<div class="row justify-content-center">
+    <div class="col-md-10 col-lg-8">
+        <h2 class="text-center mb-4" data-lang-key="refugiosMapTitle">Ubicación de Refugios</h2>
+        
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <button id="backToDashboardBtn" class="btn btn-secondary btn-sm" data-lang-key="backToDashboard">Volver al Panel</button>
+        </div>
+
+        <!-- Contenedor del mapa -->
+        <div id="leafletMap" style="height: 500px; width: 100%; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"></div>
+
+        <div class="text-center text-muted p-4" id="loadingMap" data-lang-key="loadingMap">Cargando mapa y refugios...</div>
+        <div class="alert alert-danger text-center" role="alert" id="errorLoadingMap" style="display: none;" data-lang-key="errorLoadingMap">Error al cargar el mapa o los refugios.</div>
+    </div>
+</div>
+
+<!-- Estilos de Leaflet.js (Estos deben estar en index.html) -->
+<!-- <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""/> -->
+
+<!-- Script de Leaflet.js (Este debe estar en index.html) -->
+<!-- <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20n5h9/AHyLS+j7SnyRzJp6p/sZJ/sYwWzP+i6zI+E4="
+    crossorigin=""></script> -->
+
+<script>
+    // Envuelve todo el script en una IIFE para crear un ámbito aislado
+    (function() {
+        let isRefugiosMapScriptInitialized = false; // Bandera de inicialización
+        let mapInstance; // Variable para la instancia del mapa de Leaflet
+        const MAX_RETRIES = 10; // Máximo de intentos para cargar Leaflet
+        let retryCount = 0; // Contador de reintentos
+
+        function initializeRefugiosMapScript() {
+            if (isRefugiosMapScriptInitialized) {
+                console.log("DEBUG refugios-map.html: Script ya inicializado, no se reinicializa.");
+                // Si ya está inicializado, solo aseguramos que el mapa se muestre.
+                if (mapInstance) {
+                    mapInstance.invalidateSize(); // Ajusta el tamaño del mapa si el contenedor ha cambiado
+                } else {
+                    // Si ya estaba inicializado pero mapInstance es null (ej. componente descargado y recargado), re-inicializar
+                    initLeafletMap();
+                }
+                return;
+            }
+
+            isRefugiosMapScriptInitialized = true;
+            console.log("DEBUG refugios-map.html: Iniciando carga del script de refugios-map (Leaflet) y esperando al DOM.");
+            applyTranslations(); // Aplicar traducciones
+
+            const loadingMap = $('#loadingMap');
+            const errorLoadingMap = $('#errorLoadingMap');
+
+            // NUEVA FUNCIÓN: Esperar a que Leaflet esté listo
+            function checkLeafletReady() {
+                if (typeof L !== 'undefined') {
+                    console.log("DEBUG refugios-map.html: Leaflet (L) está definido. Inicializando mapa.");
+                    initLeafletMap(); // Leaflet está listo, inicializar el mapa
+                } else {
+                    retryCount++;
+                    if (retryCount < MAX_RETRIES) {
+                        console.log(`DEBUG refugios-map.html: Leaflet (L) aún no está definido. Reintentando en 200ms... (Intento ${retryCount}/${MAX_RETRIES})`);
+                        setTimeout(checkLeafletReady, 200); // Reintentar después de un corto retraso
+                    } else {
+                        console.error("ERROR refugios-map.html: Leaflet (L) no se definió después de múltiples reintentos.");
+                        errorLoadingMap.show().text(translations[currentLanguage].errorLoadingMap || 'Error al cargar el mapa: La librería de mapas no se cargó correctamente.');
+                        loadingMap.hide();
+                    }
+                }
+            }
+
+            // Función para inicializar el mapa de Leaflet
+            function initLeafletMap() {
+                console.log("DEBUG refugios-map.html: initLeafletMap() llamado.");
+                loadingMap.show();
+                errorLoadingMap.hide();
+
+                try {
+                    // Si ya existe una instancia de mapa en el div, la destruimos para evitar duplicados
+                    if (mapInstance && mapInstance.remove) {
+                        mapInstance.remove();
+                        console.log("DEBUG refugios-map.html: Instancia de mapa existente destruida.");
+                    }
+
+                    // Coordenadas predeterminadas (Tegucigalpa, Honduras)
+                    const defaultLatLng = [14.0818, -87.2068]; 
+
+                    // Inicializar el mapa en el div con id "leafletMap"
+                    mapInstance = L.map('leafletMap').setView(defaultLatLng, 12); // Coordenadas y zoom inicial
+
+                    // Añadir una capa de mosaicos de OpenStreetMap
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    }).addTo(mapInstance);
+
+                    console.log("DEBUG refugios-map.html: Mapa de Leaflet inicializado.");
+                    loadRefugiosAndMarkers(); // Cargar los refugios y añadir marcadores
+                } catch (error) {
+                    console.error("ERROR refugios-map.html: Fallo al inicializar el mapa de Leaflet:", error);
+                    errorLoadingMap.show().text(translations[currentLanguage].errorLoadingMap || 'Error al cargar el mapa.');
+                    loadingMap.hide();
+                }
+            }
+
+            // Función para cargar refugios desde la API y añadir marcadores
+            async function loadRefugiosAndMarkers() {
+                console.log("DEBUG refugios-map.html: Entrando a loadRefugiosAndMarkers().");
+                if (typeof window.ApiService === 'undefined') {
+                    console.error("ERROR refugios-map.html: ApiService no está definido.");
+                    errorLoadingMap.show().text(translations[currentLanguage].errorLoadingMap || 'Error al cargar los refugios: ApiService no disponible.');
+                    loadingMap.hide();
+                    return;
+                }
+
+                try {
+                    console.log("DEBUG refugios-map.html: Haciendo llamada a la API: GET /refugios");
+                    const response = await window.ApiService.get(`/refugios`, true); 
+                    console.log("DEBUG refugios-map.html: API response for refugios:", response);
+
+                    loadingMap.hide();
+
+                    if (response.status === 'success' || response.status === 'éxito' && response.data) {
+                        const refugios = response.data;
+                        if (refugios.length > 0) {
+                            console.log(`DEBUG refugios-map.html: Se encontraron ${refugios.length} refugios.`);
+                            refugios.forEach(refugio => {
+                                // Asegúrate de que latitud y longitud sean números válidos
+                                const lat = parseFloat(refugio.latitud);
+                                const lng = parseFloat(refugio.longitud);
+
+                                if (!isNaN(lat) && !isNaN(lng)) {
+                                    const marker = L.marker([lat, lng]).addTo(mapInstance);
+
+                                    // InfoWindow (Popup en Leaflet) para mostrar detalles al hacer clic en el marcador
+                                    marker.bindPopup(`
+                                        <div style="font-family: 'Inter', sans-serif; padding: 5px;">
+                                            <h5 style="margin-bottom: 5px; font-weight: bold;">${refugio.nombre}</h5>
+                                            <p style="margin-bottom: 0;">${translations[currentLanguage].addressLabel || 'Dirección'}: ${refugio.direccion || 'N/A'}</p>
+                                            <p style="margin-bottom: 0;">${translations[currentLanguage].phoneLabel || 'Teléfono'}: ${refugio.telefono || 'N/A'}</p>
+                                            <!-- Puedes añadir más detalles aquí -->
+                                        </div>
+                                    `); // Se quitó .openPopup() para que no se abran automáticamente al cargar
+                                } else {
+                                    console.warn(`ADVERTENCIA refugios-map.html: Refugio '${refugio.nombre}' no tiene coordenadas válidas (lat: ${refugio.latitud}, lng: ${refugio.longitud}).`);
+                                }
+                            });
+                        } else {
+                            console.log("DEBUG refugios-map.html: No se encontraron refugios en la respuesta de la API.");
+                            errorLoadingMap.show().text(translations[currentLanguage].noRefugiosFound || 'No se encontraron refugios para mostrar.');
+                        }
+                    } else {
+                        console.log("DEBUG refugios-map.html: API response status is NOT success or éxito. Status:", response.status);
+                        errorLoadingMap.show().text(response.message || translations[currentLanguage].errorLoadingMap || 'Error al cargar los refugios.');
+                    }
+                } catch (error) {
+                    console.error("ERROR refugios-map.html: Fallo al cargar refugios desde la API:", error);
+                    errorLoadingMap.show().text(translations[currentLanguage].communicationError || 'Error de comunicación con el servidor al cargar refugios.');
+                }
+            }
+
+            // --- Event Listeners ---
+            $(document).off('click.refugiosMapBack').on('click.refugiosMapBack', '#backToDashboardBtn', function() {
+                window.loadComponent('dashboard-user');
+            });
+
+            // Llamada Inicial para iniciar la verificación de Leaflet
+            checkLeafletReady();
+        }
+
+        // Ejecutar la función de inicialización cuando el DOM esté listo
+        $(document).ready(function() {
+            initializeRefugiosMapScript();
+        });
+
+        // Limpieza de eventos y mapa al descargar el componente
+        $(document).on('componentUnloaded.refugiosMapCleanup', function(event, unloadedComponentName) {
+            if (unloadedComponentName === 'refugios-map') {
+                console.log("DEBUG refugios-map.html: ¡componentUnloaded para refugios-map detectado! Limpiando listeners y reseteando bandera.");
+                $(document).off('.refugiosMapBack');
+                if (mapInstance) {
+                    mapInstance.remove(); // Destruye la instancia del mapa de Leaflet
+                    mapInstance = null;
+                    console.log("DEBUG refugios-map.html: Instancia de mapa de Leaflet destruida.");
+                }
+                isRefugiosMapScriptInitialized = false; // Restablecer la bandera
+                retryCount = 0; // Reiniciar el contador de reintentos
+                $(document).off('componentUnloaded.refugiosMapCleanup');
+                console.log("DEBUG refugios-map.html: Event listeners de refugios-map limpiados.");
+            }
+        });
+    })(); // Fin de la IIFE
+</script>

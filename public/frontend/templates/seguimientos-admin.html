@@ -1,0 +1,418 @@
+<!-- public/frontend/templates/seguimientos-admin.html -->
+<div class="row justify-content-center">
+    <div class="col-md-12 col-lg-10">
+        <h2 class="text-center mb-4" data-lang-key="postAdoptionFollowUpsTitle">Gestión de Seguimientos Post-Adopción</h2>
+        
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <button id="backToAdminDashboardBtn" class="btn btn-secondary btn-sm" data-lang-key="backToDashboard">Volver al Panel</button>
+            <button id="addSeguimientoBtn" class="btn btn-primary" data-lang-key="addFollowUp">Añadir Seguimiento</button>
+        </div>
+
+        <div class="alert alert-info text-center" role="alert" id="loadingMessage" data-lang-key="loadingFollowUps">Cargando seguimientos...</div>
+        <div class="alert alert-danger text-center" role="alert" id="errorMessage" style="display: none;" data-lang-key="errorLoadingFollowUps">Error al cargar los seguimientos.</div>
+        <div class="alert alert-warning text-center" role="alert" id="noDataMessage" style="display: none;" data-lang-key="noFollowUpsFound">No se encontraron seguimientos post-adopción.</div>
+
+        <div class="table-responsive">
+            <table class="table table-striped table-hover shadow-sm rounded-3 overflow-hidden">
+                <thead class="bg-primary text-white">
+                    <tr>
+                        <th data-lang-key="tableHeaderId">ID</th>
+                        <th data-lang-key="tableHeaderPet">Mascota</th>
+                        <th data-lang-key="tableHeaderAdoptiveUser">Adoptante</th>
+                        <th data-lang-key="tableHeaderFollowUpDate">Fecha Seguimiento</th>
+                        <th data-lang-key="tableHeaderFollowUpType">Tipo</th>
+                        <th data-lang-key="tableHeaderPetStatus">Estado Mascota</th>
+                        <th data-lang-key="tableHeaderActions">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="seguimientosTableBody">
+                    <!-- Los seguimientos se cargarán aquí dinámicamente -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Añadir/Editar Seguimiento -->
+<div class="modal fade" id="seguimientoModal" tabindex="-1" aria-labelledby="seguimientoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="seguimientoModalLabel" data-lang-key="addFollowUpTitle">Añadir Nuevo Seguimiento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="seguimientoForm">
+                    <input type="hidden" id="seguimientoId">
+                    <input type="hidden" id="creadoPorIdUsuario"> <!-- Para almacenar el ID del admin/voluntario logueado -->
+
+                    <div class="mb-3">
+                        <label for="idMascota" class="form-label" data-lang-key="formLabelPet">Mascota:</label>
+                        <select class="form-select" id="idMascota" required>
+                            <option value="" data-lang-key="selectPet">Selecciona una mascota...</option>
+                            <!-- Opciones cargadas dinámicamente -->
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="idUsuarioAdoptante" class="form-label" data-lang-key="formLabelAdoptiveUser">Usuario Adoptante:</label>
+                        <select class="form-select" id="idUsuarioAdoptante" required>
+                            <option value="" data-lang-key="selectAdoptiveUser">Selecciona un usuario adoptante...</option>
+                            <!-- Opciones cargadas dinámicamente -->
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="fechaSeguimiento" class="form-label" data-lang-key="formLabelFollowUpDate">Fecha de Seguimiento:</label>
+                        <input type="date" class="form-control" id="fechaSeguimiento" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="tipoSeguimiento" class="form-label" data-lang-key="formLabelFollowUpType">Tipo de Seguimiento:</label>
+                        <select class="form-select" id="tipoSeguimiento" required>
+                            <option value="" data-lang-key="selectFollowUpType">Selecciona un tipo...</option>
+                            <option value="Visita Domiciliaria" data-lang-key="followUpTypeHomeVisit">Visita Domiciliaria</option>
+                            <option value="Llamada Telefónica" data-lang-key="followUpTypePhoneCall">Llamada Telefónica</option>
+                            <option value="Reporte Online" data-lang-key="followUpTypeOnlineReport">Reporte Online</option>
+                            <option value="Otro" data-lang-key="followUpTypeOther">Otro</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="estadoMascota" class="form-label" data-lang-key="formLabelPetStatus">Estado de la Mascota:</label>
+                        <select class="form-select" id="estadoMascota" required>
+                            <option value="" data-lang-key="selectPetStatus">Selecciona un estado...</option>
+                            <option value="Excelente" data-lang-key="petStatusExcellent">Excelente</option>
+                            <option value="Bueno" data-lang-key="petStatusGood">Bueno</option>
+                            <option value="Regular" data-lang-key="petStatusRegular">Regular</option>
+                            <option value="Preocupante" data-lang-key="petStatusConcerning">Preocupante</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="observaciones" class="form-label" data-lang-key="formLabelObservations">Observaciones:</label>
+                        <textarea class="form-control" id="observaciones" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="recomendaciones" class="form-label" data-lang-key="formLabelRecommendations">Recomendaciones:</label>
+                        <textarea class="form-control" id="recomendaciones" rows="3"></textarea>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" data-lang-key="saveFollowUp">Guardar Seguimiento</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        let isSeguimientosAdminScriptInitialized = false;
+        let allMascotas = [];
+        let allUsuarios = [];
+
+        function initializeSeguimientosAdminScript() {
+            if (isSeguimientosAdminScriptInitialized) {
+                console.log("DEBUG seguimientos-admin.html: Script ya inicializado, no se reinicializa.");
+                loadSeguimientos(); // Solo recargar datos si ya está inicializado
+                return;
+            }
+
+            isSeguimientosAdminScriptInitialized = true;
+            console.log("DEBUG seguimientos-admin.html: Iniciando carga del script de seguimientos-admin y esperando al DOM.");
+            applyTranslations();
+
+            const loadingMessage = $('#loadingMessage');
+            const errorMessage = $('#errorMessage');
+            const noDataMessage = $('#noDataMessage');
+            const seguimientosTableBody = $('#seguimientosTableBody');
+            const seguimientoModal = new bootstrap.Modal(document.getElementById('seguimientoModal'));
+
+            let currentAdminId = null; // Para almacenar el ID del administrador logueado
+
+            // Obtener el ID del usuario logueado (admin)
+            if (typeof window.AuthService !== 'undefined') {
+                const currentUser = window.AuthService.getUserData();
+                if (currentUser && currentUser.id_usuario) {
+                    currentAdminId = currentUser.id_usuario;
+                    $('#creadoPorIdUsuario').val(currentAdminId);
+                    console.log(`DEBUG seguimientos-admin.html: ID del administrador logueado: ${currentAdminId}`);
+                } else {
+                    console.error("ERROR seguimientos-admin.html: No se pudo obtener el ID del usuario logueado.");
+                    errorMessage.show().text(translations[currentLanguage].errorAuthUser || 'Error: No se pudo identificar al usuario. Por favor, inicia sesión de nuevo.');
+                    loadingMessage.hide();
+                    return;
+                }
+            } else {
+                console.error("ERROR seguimientos-admin.html: AuthService no está definido.");
+                errorMessage.show().text(translations[currentLanguage].errorAuthService || 'Error: Servicio de autenticación no disponible.');
+                loadingMessage.hide();
+                return;
+            }
+
+            // Función para cargar mascotas y usuarios para los selectores del formulario
+            async function loadFormSelectsData() {
+                console.log("DEBUG seguimientos-admin.html: Cargando datos para selectores de formulario...");
+                try {
+                    const [mascotasResponse, usersResponse] = await Promise.all([
+                        window.ApiService.get('/mascotas', true), // Obtener todas las mascotas
+                        window.ApiService.get('/usuarios', true)   // Obtener todos los usuarios (para adoptantes y creadores)
+                    ]);
+
+                    if (mascotasResponse.status === 'éxito' && Array.isArray(mascotasResponse.data)) {
+                        allMascotas = mascotasResponse.data;
+                        const mascotaSelect = $('#idMascota');
+                        mascotaSelect.empty().append($('<option>', {
+                            value: '',
+                            text: translations[currentLanguage].selectPet || 'Selecciona una mascota...'
+                        }));
+                        allMascotas.forEach(mascota => {
+                            mascotaSelect.append($('<option>', {
+                                value: mascota.id_mascota,
+                                text: `${mascota.nombre} (${mascota.especie} - ${mascota.raza})`
+                            }));
+                        });
+                        console.log("DEBUG seguimientos-admin.html: Mascotas cargadas para el selector.");
+                    } else {
+                        console.error("ERROR seguimientos-admin.html: Fallo al cargar mascotas:", mascotasResponse.message);
+                        Swal.fire('Error', translations[currentLanguage].errorLoadingPets || 'No se pudieron cargar las mascotas para el formulario.', 'error');
+                    }
+
+                    if (usersResponse.status === 'éxito' && Array.isArray(usersResponse.data)) {
+                        allUsuarios = usersResponse.data;
+                        const adoptanteSelect = $('#idUsuarioAdoptante');
+                        adoptanteSelect.empty().append($('<option>', {
+                            value: '',
+                            text: translations[currentLanguage].selectAdoptiveUser || 'Selecciona un usuario adoptante...'
+                        }));
+                        allUsuarios.forEach(user => {
+                            adoptanteSelect.append($('<option>', {
+                                value: user.id_usuario,
+                                text: `${user.nombre_usuario} (${user.email})`
+                            }));
+                        });
+                        console.log("DEBUG seguimientos-admin.html: Usuarios cargados para el selector de adoptantes.");
+                    } else {
+                        console.error("ERROR seguimientos-admin.html: Fallo al cargar usuarios:", usersResponse.message);
+                        Swal.fire('Error', translations[currentLanguage].errorLoadingUsers || 'No se pudieron cargar los usuarios para el formulario.', 'error');
+                    }
+
+                } catch (error) {
+                    console.error("ERROR seguimientos-admin.html: Fallo general al cargar datos para selectores:", error);
+                    Swal.fire('Error', translations[currentLanguage].communicationError || 'Error de comunicación al cargar datos para el formulario.', 'error');
+                }
+            }
+
+            // Función para cargar los seguimientos y llenar la tabla
+            async function loadSeguimientos() {
+                console.log("DEBUG seguimientos-admin.html: Cargando seguimientos...");
+                loadingMessage.show();
+                errorMessage.hide();
+                noDataMessage.hide();
+                seguimientosTableBody.empty();
+
+                try {
+                    const response = await window.ApiService.get('/seguimientos-post-adopcion', true);
+                    console.log("DEBUG seguimientos-admin.html: Respuesta de API para seguimientos:", response);
+
+                    loadingMessage.hide();
+
+                    if (response.status === 'success' && response.data && response.data.length > 0) {
+                        response.data.forEach(seguimiento => {
+                            const row = `
+                                <tr>
+                                    <td>${seguimiento.id_seguimiento}</td>
+                                    <td>${seguimiento.mascota_nombre || 'N/A'}</td>
+                                    <td>${seguimiento.adoptante_nombre || 'N/A'}</td>
+                                    <td>${seguimiento.fecha_seguimiento}</td>
+                                    <td>${seguimiento.tipo_seguimiento}</td>
+                                    <td>${seguimiento.estado_mascota}</td>
+                                    <td>
+                                        <button class="btn btn-info btn-sm edit-seguimiento-btn" data-id="${seguimiento.id_seguimiento}" data-lang-key="editButton"><i class="fas fa-edit"></i></button>
+                                        <button class="btn btn-danger btn-sm delete-seguimiento-btn" data-id="${seguimiento.id_seguimiento}" data-lang-key="deleteButton"><i class="fas fa-trash-alt"></i></button>
+                                    </td>
+                                </tr>
+                            `;
+                            seguimientosTableBody.append(row);
+                        });
+                    } else {
+                        noDataMessage.show();
+                    }
+                } catch (error) {
+                    console.error("ERROR seguimientos-admin.html: Fallo al cargar seguimientos:", error);
+                    errorMessage.show().text(translations[currentLanguage].errorLoadingFollowUps || 'Error al cargar los seguimientos.');
+                }
+            }
+
+            // --- Event Listeners ---
+
+            // Botón "Volver al Panel"
+            $(document).off('click.seguimientosAdminBack').on('click.seguimientosAdminBack', '#backToAdminDashboardBtn', function() {
+                window.loadComponent('dashboard-admin');
+            });
+
+            // Botón "Añadir Seguimiento"
+            $(document).off('click.seguimientosAdminAdd').on('click.seguimientosAdminAdd', '#addSeguimientoBtn', async function() {
+                console.log("DEBUG seguimientos-admin.html: Clic en 'Añadir Seguimiento'.");
+                $('#seguimientoForm')[0].reset(); // Limpiar formulario
+                $('#seguimientoId').val(''); // Asegurar que ID esté vacío para crear
+                $('#seguimientoModalLabel').text(translations[currentLanguage].addFollowUpTitle || 'Añadir Nuevo Seguimiento');
+                await loadFormSelectsData(); // Recargar datos para los selectores
+                seguimientoModal.show();
+            });
+
+            // Editar Seguimiento
+            $(document).off('click.seguimientosAdminEdit').on('click.seguimientosAdminEdit', '.edit-seguimiento-btn', async function() {
+                const id = $(this).data('id');
+                console.log(`DEBUG seguimientos-admin.html: Clic en 'Editar Seguimiento' para ID: ${id}`);
+                
+                $('#seguimientoModalLabel').text(translations[currentLanguage].editFollowUpTitle || 'Editar Seguimiento');
+                await loadFormSelectsData(); // Cargar datos para los selectores antes de poblar el formulario
+
+                try {
+                    const response = await window.ApiService.get(`/seguimientos-post-adopcion/${id}`, true);
+                    if (response.status === 'success' && response.data) {
+                        const seguimiento = response.data;
+                        $('#seguimientoId').val(seguimiento.id_seguimiento);
+                        $('#idMascota').val(seguimiento.id_mascota);
+                        $('#idUsuarioAdoptante').val(seguimiento.id_usuario_adoptante);
+                        $('#fechaSeguimiento').val(seguimiento.fecha_seguimiento);
+                        $('#tipoSeguimiento').val(seguimiento.tipo_seguimiento);
+                        $('#estadoMascota').val(seguimiento.estado_mascota);
+                        $('#observaciones').val(seguimiento.observaciones);
+                        $('#recomendaciones').val(seguimiento.recomendaciones);
+                        $('#creadoPorIdUsuario').val(seguimiento.creado_por_id_usuario); // Asegurar que se mantenga el creador original o el actual logueado
+
+                        seguimientoModal.show();
+                    } else {
+                        Swal.fire('Error', response.message || translations[currentLanguage].errorFetchingFollowUp || 'No se pudo obtener la información del seguimiento.', 'error');
+                    }
+                } catch (error) {
+                    console.error("ERROR seguimientos-admin.html: Fallo al obtener seguimiento para edición:", error);
+                    Swal.fire('Error', translations[currentLanguage].communicationError || 'Error de comunicación al obtener datos para edición.', 'error');
+                }
+            });
+
+            // Eliminar Seguimiento
+            $(document).off('click.seguimientosAdminDelete').on('click.seguimientosAdminDelete', '.delete-seguimiento-btn', function() {
+                const id = $(this).data('id');
+                console.log(`DEBUG seguimientos-admin.html: Clic en 'Eliminar Seguimiento' para ID: ${id}`);
+
+                Swal.fire({
+                    title: translations[currentLanguage].confirmDeleteTitle || '¿Estás seguro?',
+                    text: translations[currentLanguage].confirmDeleteText || "¡No podrás revertir esto!",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: translations[currentLanguage].yesDeleteIt || 'Sí, eliminarlo!',
+                    cancelButtonText: translations[currentLanguage].cancelButton || 'Cancelar'
+                }).then(async (result) => {
+                    if (result.isConfirmed) {
+                        try {
+                            // *** CAMBIO AQUI: USAR .remove() EN LUGAR DE .delete() ***
+                            const response = await window.ApiService.remove(`/seguimientos-post-adopcion/${id}`, true);
+                            
+                            if (response.status === 'success' || response.status === 'éxito') { // Aceptar ambos estados de éxito
+                                Swal.fire(
+                                    translations[currentLanguage].deletedTitle || 'Eliminado!',
+                                    response.message || translations[currentLanguage].followUpDeleted || 'El seguimiento ha sido eliminado.',
+                                    'success'
+                                );
+                                loadSeguimientos(); // Recargar la tabla
+                            } else {
+                                Swal.fire(
+                                    'Error',
+                                    response.message || translations[currentLanguage].errorDeletingFollowUp || 'Hubo un error al eliminar el seguimiento.',
+                                    'error'
+                                );
+                            }
+                        } catch (error) {
+                            console.error("ERROR seguimientos-admin.html: Fallo al eliminar seguimiento:", error);
+                            Swal.fire('Error', translations[currentLanguage].communicationError || 'Error de comunicación al eliminar el seguimiento.', 'error');
+                        }
+                    }
+                });
+            });
+
+            // Enviar Formulario (Crear/Editar)
+            $(document).off('submit.seguimientosAdminForm').on('submit.seguimientosAdminForm', '#seguimientoForm', async function(e) {
+                e.preventDefault();
+                console.log("DEBUG seguimientos-admin.html: Formulario de seguimiento enviado.");
+
+                const id = $('#seguimientoId').val();
+                // Determinar el método y la URL de la API
+                const method = id ? 'PUT' : 'POST';
+                const url = id ? `/seguimientos-post-adopcion/${id}` : '/seguimientos-post-adopcion';
+
+                const formData = {
+                    id_mascota: parseInt($('#idMascota').val()),
+                    id_usuario_adoptante: parseInt($('#idUsuarioAdoptante').val()),
+                    fecha_seguimiento: $('#fechaSeguimiento').val(),
+                    tipo_seguimiento: $('#tipoSeguimiento').val(),
+                    estado_mascota: $('#estadoMascota').val(),
+                    observaciones: $('#observaciones').val(),
+                    recomendaciones: $('#recomendaciones').val(),
+                    creado_por_id_usuario: parseInt($('#creadoPorIdUsuario').val())
+                };
+
+                // Validaciones básicas
+                if (!formData.id_mascota || !formData.id_usuario_adoptante || !formData.fecha_seguimiento ||
+                    !formData.tipo_seguimiento || !formData.estado_mascota || !formData.creado_por_id_usuario) {
+                    Swal.fire('Advertencia', translations[currentLanguage].validationErrorText || 'Por favor, completa todos los campos obligatorios.', 'warning');
+                    return;
+                }
+
+                try {
+                    let response;
+                    if (method === 'POST') {
+                        response = await window.ApiService.post(url, formData, true);
+                    } else if (method === 'PUT') {
+                        response = await window.ApiService.put(url, formData, true);
+                    } else {
+                        // Esto no debería ocurrir con la lógica actual, pero es una buena práctica
+                        throw new Error('Método HTTP no soportado para guardar seguimiento.');
+                    }
+                    
+                    if (response.status === 'success' || response.status === 'éxito') { // Aceptar ambos estados de éxito
+                        Swal.fire(
+                            translations[currentLanguage].successTitle || 'Éxito!',
+                            response.message || translations[currentLanguage].followUpSaved || 'Seguimiento guardado exitosamente.',
+                            'success'
+                        );
+                        seguimientoModal.hide();
+                        loadSeguimientos(); // Recargar la tabla
+                    } else {
+                        Swal.fire(
+                            'Error',
+                            response.message || translations[currentLanguage].errorSavingFollowUp || 'Hubo un error al guardar el seguimiento.',
+                            'error'
+                        );
+                    }
+                } catch (error) {
+                    console.error("ERROR seguimientos-admin.html: Fallo al guardar seguimiento:", error);
+                    Swal.fire('Error', translations[currentLanguage].communicationError || 'Error de comunicación al guardar el seguimiento.', 'error');
+                }
+            });
+
+            // --- Carga inicial de datos ---
+            loadSeguimientos();
+            // loadFormSelectsData() se llama al abrir el modal para asegurar datos frescos.
+
+            // Limpieza al descargar el componente
+            $(document).on('componentUnloaded.seguimientosAdminCleanup', function(event, unloadedComponentName) {
+                if (unloadedComponentName === 'seguimientos-admin') {
+                    console.log("DEBUG seguimientos-admin.html: ¡componentUnloaded para seguimientos-admin detectado! Limpiando listeners.");
+                    $(document).off('.seguimientosAdminBack');
+                    $(document).off('.seguimientosAdminAdd');
+                    $(document).off('.seguimientosAdminEdit');
+                    $(document).off('.seguimientosAdminDelete');
+                    $(document).off('.seguimientosAdminForm');
+                    isSeguimientosAdminScriptInitialized = false;
+                    allMascotas = [];
+                    allUsuarios = [];
+                    console.log("DEBUG seguimientos-admin.html: Event listeners de seguimientos-admin limpiados.");
+                }
+            });
+        }
+
+        $(document).ready(function() {
+            initializeSeguimientosAdminScript();
+        });
+    })();
+</script>

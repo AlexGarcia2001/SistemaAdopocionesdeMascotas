@@ -1,0 +1,552 @@
+<!-- public/frontend/templates/users.html -->
+
+<div class="row justify-content-center">
+    <div class="col-md-10 col-lg-10">
+        <h2 class="text-center mb-4" data-lang-key="manageUsersTitle">Gestionar Usuarios</h2>
+
+        <!-- Botón Atrás -->
+        <div class="mb-3">
+            <button id="backToDashboardBtn" class="btn btn-secondary" data-lang-key="backButton">Atrás</button>
+        </div>
+
+        <!-- Barra de búsqueda -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <input type="text" class="form-control" id="userSearch" placeholder="Buscar usuarios..." data-lang-key="searchUsersPlaceholder">
+            </div>
+        </div>
+
+        <!-- Contenedor para la tabla de usuarios -->
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th data-lang-key="userId">ID</th>
+                        <th data-lang-key="userName">Nombre</th>
+                        <th data-lang-key="userLastName">Apellido</th>
+                        <th data-lang-key="userEmail">Email</th>
+                        <th data-lang-key="userRole">Rol</th>
+                        <th data-lang-key="userStatus">Estado</th>
+                        <th data-lang-key="actions">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTableBody">
+                    <!-- Las filas de usuarios se cargarán aquí dinámicamente -->
+                </tbody>
+            </table>
+        </div>
+
+        <div class="d-grid gap-2 mt-4">
+            <button id="addUserBtn" class="btn btn-success btn-lg" data-lang-key="addUser">Añadir Usuario</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Añadir Usuario -->
+<div class="modal fade" id="addUserModal" tabindex="-1" aria-labelledby="addUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addUserModalLabel" data-lang-key="addUser">Añadir Usuario</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addUserForm">
+                    <div class="mb-3">
+                        <label for="addUserName" class="form-label" data-lang-key="userName">Nombre:</label>
+                        <input type="text" class="form-control" id="addUserName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addUserLastName" class="form-label" data-lang-key="userLastName">Apellido:</label>
+                        <input type="text" class="form-control" id="addUserLastName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addUserEmail" class="form-label" data-lang-key="userEmail">Email:</label>
+                        <input type="email" class="form-control" id="addUserEmail" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addUserPassword" class="form-label" data-lang-key="userPassword">Contraseña:</label>
+                        <input type="password" class="form-control" id="addUserPassword" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addUserRole" class="form-label" data-lang-key="userRole">Rol:</label>
+                        <select class="form-select" id="addUserRole" required>
+                            <option value="">Seleccionar</option>
+                            <!-- Los roles se cargarán dinámicamente -->
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addUserStatus" class="form-label" data-lang-key="userStatus">Estado:</label>
+                        <select class="form-select" id="addUserStatus" required>
+                            <option value="activo">Activo</option>
+                            <option value="inactivo">Inactivo</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary" data-lang-key="saveUser">Guardar Usuario</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Editar Usuario -->
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editUserModalLabel" data-lang-key="editUser">Editar Usuario</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editUserForm">
+                    <input type="hidden" id="editUserId">
+                    <div class="mb-3">
+                        <label for="editUserName" class="form-label" data-lang-key="userName">Nombre:</label>
+                        <input type="text" class="form-control" id="editUserName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editUserLastName" class="form-label" data-lang-key="userLastName">Apellido:</label>
+                        <input type="text" class="form-control" id="editUserLastName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editUserEmail" class="form-label" data-lang-key="userEmail">Email:</label>
+                        <input type="email" class="form-control" id="editUserEmail" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editUserPassword" class="form-label" data-lang-key="userPassword">Nueva Contraseña (dejar vacío para no cambiar):</label>
+                        <input type="password" class="form-control" id="editUserPassword">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editUserRole" class="form-label" data-lang-key="userRole">Rol:</label>
+                        <select class="form-select" id="editUserRole" required>
+                            <option value="">Seleccionar</option>
+                            <!-- Los roles se cargarán dinámicamente -->
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editUserStatus" class="form-label" data-lang-key="userStatus">Estado:</label>
+                        <select class="form-select" id="editUserStatus" required>
+                            <option value="activo">Activo</option>
+                            <option value="inactivo">Inactivo</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary" data-lang-key="saveChanges">Guardar Cambios</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Script para users.html
+    (function() {
+        console.log("DEBUG users.html: Iniciando carga del script.");
+        applyTranslations(); // Aplicar traducciones a los elementos estáticos iniciales
+
+        const usersTableBody = $('#usersTableBody');
+        let allUsersData = []; // Variable para almacenar todos los usuarios cargados
+        let allRolesData = []; // Variable para almacenar los roles disponibles
+
+        // --- DATOS MOCK PARA ROLES (SIMULACIÓN DE DATOS DE LA BASE DE DATOS) ---
+        // Estos datos se usarán SOLO si la llamada a la API de roles falla o no devuelve datos.
+        const mockRolesData = [
+            { id_rol: 1, nombre_rol: "Administrador" },
+            { id_rol: 2, nombre_rol: "Usuario Regular" },
+            { id_rol: 3, nombre_rol: "Refugio" }
+        ];
+        // --- FIN DATOS MOCK PARA ROLES ---
+
+        async function loadUsersAndRoles() {
+            usersTableBody.html('<tr><td colspan="7" class="text-center py-3"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div><p class="mt-2">Cargando usuarios...</p></td></tr>'); // Indicador de carga, colspan ajustado a 7
+
+            try {
+                // Cargar roles primero
+                console.log("DEBUG users.html: Llamando window.ApiService.get('/roles', true) para cargar roles.");
+                const rolesResponse = await window.ApiService.get('/roles', true);
+                if (rolesResponse.status === 'success' || rolesResponse.status === 'éxito') {
+                    allRolesData = rolesResponse.data;
+                    console.log("DEBUG users.html: Roles cargados:", allRolesData);
+                } else {
+                    console.error("ERROR users.html: No se pudieron cargar los roles:", rolesResponse.message || rolesResponse);
+                    Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: 'Error al cargar los roles de usuario.' });
+                    allRolesData = mockRolesData; // Usar mocks si falla la API
+                }
+
+                // Cargar usuarios
+                console.log("DEBUG users.html: Llamando window.ApiService.get('/usuarios', true) para cargar usuarios.");
+                const usersResponse = await window.ApiService.get('/usuarios', true);
+
+                if (usersResponse.status === 'success' || usersResponse.status === 'éxito') {
+                    if (usersResponse.data && usersResponse.data.length > 0) {
+                        allUsersData = usersResponse.data;
+                        applyFiltersAndRenderUsers(); // Aplicar filtros y renderizar
+                        console.log("DEBUG users.html: Usuarios cargados y renderizados exitosamente.");
+                    } else {
+                        usersTableBody.html(`<tr><td colspan="7" class="text-center py-3"><p data-lang-key="noRecordsFound">${translations[currentLanguage].noRecordsFound}</p></td></tr>`); // colspan ajustado a 7
+                        applyTranslations();
+                        console.log("DEBUG users.html: La API no devolvió usuarios.");
+                    }
+                } else {
+                    console.error("ERROR users.html: La API devolvió un error al cargar usuarios:", usersResponse.message || usersResponse);
+                    usersTableBody.html(`<tr><td colspan="7" class="text-center py-3"><p class="text-danger" data-lang-key="generalError">${translations[currentLanguage].generalError}: ${usersResponse.message || 'Error desconocido de la API.'}</p></td></tr>`); // colspan ajustado a 7
+                    applyTranslations();
+                    Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: usersResponse.message || 'Error al cargar los usuarios.' });
+                }
+            } catch (error) {
+                console.error("ERROR users.html: Fallo al cargar usuarios o roles (captura general):", error);
+                let errorMessage = 'Error de comunicación con el servidor al cargar usuarios.';
+                if (error.responseJSON && error.responseJSON.message) {
+                    errorMessage = error.responseJSON.message;
+                } else if (error.statusText) {
+                    errorMessage = `Error de red: ${error.statusText} (Código: ${error.status || 'N/A'})`;
+                } else if (error.message) {
+                    errorMessage = `Error JavaScript: ${error.message}`;
+                }
+                Swal.fire({
+                    icon: 'error',
+                    title: translations[currentLanguage].generalError,
+                    text: errorMessage
+                });
+            }
+        }
+
+        /**
+         * Aplica los filtros actuales a allUsersData y renderiza la tabla.
+         */
+        function applyFiltersAndRenderUsers() {
+            let filteredUsers = [...allUsersData];
+            const searchTerm = $('#userSearch').val().toLowerCase().trim();
+
+            if (searchTerm) {
+                filteredUsers = filteredUsers.filter(user =>
+                    (user.nombre_usuario && user.nombre_usuario.toLowerCase().includes(searchTerm)) ||
+                    (user.apellido && user.apellido.toLowerCase().includes(searchTerm)) ||
+                    (user.email && user.email.toLowerCase().includes(searchTerm)) ||
+                    (user.nombre_rol && user.nombre_rol.toLowerCase().includes(searchTerm)) ||
+                    (user.estado && user.estado.toLowerCase().includes(searchTerm))
+                );
+            }
+            renderUsersTable(filteredUsers);
+        }
+
+        /**
+         * Renderiza las filas de usuarios en la tabla.
+         * @param {Array<Object>} usersArray Un array de objetos de usuario.
+         */
+        function renderUsersTable(usersArray) {
+            usersTableBody.empty(); // Limpiar el contenido existente
+            if (usersArray.length === 0) {
+                usersTableBody.html(`<tr><td colspan="7" class="text-center py-3"><p data-lang-key="noRecordsFound">${translations[currentLanguage].noRecordsFound}</p></td></tr>`); // colspan ajustado a 7
+                applyTranslations();
+                return;
+            }
+
+            usersArray.forEach(user => {
+                const roleName = allRolesData.find(role => role.id_rol === user.id_rol)?.nombre_rol || 'Desconocido';
+                const userRow = `
+                    <tr>
+                        <td>${user.id_usuario}</td>
+                        <td>${user.nombre_usuario}</td>
+                        <td>${user.apellido || 'N/A'}</td>
+                        <td>${user.email}</td>
+                        <td>${roleName}</td>
+                        <td>${user.estado}</td>
+                        <td>
+                            <button class="btn btn-info btn-sm edit-user-btn" data-user-id="${user.id_usuario}" data-lang-key="editButton">Editar</button>
+                            <button class="btn btn-danger btn-sm delete-user-btn ms-1" data-user-id="${user.id_usuario}" data-lang-key="deleteButton">Eliminar</button>
+                        </td>
+                    </tr>
+                `;
+                usersTableBody.append(userRow);
+            });
+            applyTranslations(); // Volver a aplicar traducciones a los nuevos elementos
+        }
+
+        /**
+         * Rellena los selectores de rol en los modales.
+         * @param {string} modalType 'add' o 'edit'
+         * @param {number|null} selectedRoleId El ID del rol a seleccionar por defecto (solo para editar).
+         */
+        function populateRoleSelect(modalType, selectedRoleId = null) {
+            const selectElement = modalType === 'add' ? $('#addUserRole') : $('#editUserRole');
+            selectElement.empty().append('<option value="">Seleccionar</option>'); // Limpiar y añadir opción por defecto
+
+            allRolesData.forEach(role => {
+                const option = `<option value="${role.id_rol}">${role.nombre_rol}</option>`;
+                selectElement.append(option);
+            });
+
+            if (selectedRoleId) {
+                selectElement.val(selectedRoleId);
+            }
+        }
+
+        // Cargar usuarios y roles al cargar el componente
+        loadUsersAndRoles();
+
+        // --- Event Listeners ---
+
+        // Manejar clic en el botón "Añadir Usuario"
+        $(document).off('click', '#addUserBtn').on('click', '#addUserBtn', function() {
+            $('#addUserForm')[0].reset(); // Limpia el formulario al abrir
+            populateRoleSelect('add'); // Rellena el selector de roles
+            $('#addUserModal').modal('show'); // Abre el modal
+        });
+
+        // Manejar el envío del formulario de Añadir Usuario
+        $(document).off('submit', '#addUserForm').on('submit', '#addUserForm', async function(e) {
+            e.preventDefault();
+            console.log("DEBUG users.html: Enviando formulario de añadir usuario.");
+
+            const userData = {
+                nombre_usuario: $('#addUserName').val(),
+                apellido: $('#addUserLastName').val(),
+                email: $('#addUserEmail').val(),
+                password: $('#addUserPassword').val(),
+                id_rol: parseInt($('#addUserRole').val()),
+                estado: $('#addUserStatus').val()
+            };
+
+            // Validaciones básicas del formulario
+            if (!userData.nombre_usuario || !userData.apellido || !userData.email || !userData.password || isNaN(userData.id_rol) || !userData.estado) {
+                Swal.fire({
+                    icon: 'error',
+                    title: translations[currentLanguage].formCorrectionError,
+                    text: 'Por favor, rellena todos los campos obligatorios.'
+                });
+                return;
+            }
+
+            try {
+                console.log("DEBUG users.html: Llamando window.ApiService.post('/usuarios', userData, true)");
+                const response = await window.ApiService.post('/usuarios', userData, true);
+
+                if (response.status === 'success' || response.status === 'éxito') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: translations[currentLanguage].createSuccess,
+                        text: response.message || 'Usuario añadido exitosamente.'
+                    });
+                    $('#addUserModal').modal('hide'); // Cierra el modal
+                    loadUsersAndRoles(); // Recarga la lista de usuarios
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: translations[currentLanguage].createError,
+                        text: response.message || 'Error al añadir el usuario.'
+                    });
+                }
+            } catch (error) {
+                console.error("ERROR users.html: Fallo al añadir usuario (captura general):", error);
+                let errorMessage = 'Error de comunicación con el servidor al añadir usuario.';
+                if (error.responseJSON && error.responseJSON.message) {
+                    errorMessage = error.responseJSON.message;
+                } else if (error.statusText) {
+                    errorMessage = `Error de red: ${error.statusText} (Código: ${error.status || 'N/A'})`;
+                } else if (error.message) {
+                    errorMessage = `Error JavaScript: ${error.message}`;
+                }
+                Swal.fire({
+                    icon: 'error',
+                    title: translations[currentLanguage].generalError,
+                    text: errorMessage
+                });
+            }
+        });
+
+        // Manejar clic en el botón "Editar Usuario" (delegación de eventos)
+        $(document).off('click', '.edit-user-btn').on('click', '.edit-user-btn', async function() {
+            const userId = $(this).data('user-id');
+            console.log(`DEBUG users.html: Clic en 'Editar' para Usuario ID: ${userId}`);
+
+            try {
+                console.log(`DEBUG users.html: Llamando window.ApiService.get('/usuarios/${userId}', true) para edición.`);
+                const response = await window.ApiService.get(`/usuarios/${userId}`, true);
+
+                if ((response.status === 'success' || response.status === 'éxito') && response.data) {
+                    const user = response.data;
+                    console.log("DEBUG users.html: Datos de usuario para edición:", user);
+
+                    $('#editUserId').val(user.id_usuario);
+                    $('#editUserName').val(user.nombre_usuario);
+                    $('#editUserLastName').val(user.apellido);
+                    $('#editUserEmail').val(user.email);
+                    // La contraseña no se pre-rellena por seguridad
+                    $('#editUserPassword').val(''); 
+                    populateRoleSelect('edit', user.id_rol); // Rellenar y seleccionar rol
+                    $('#editUserStatus').val(user.estado);
+
+                    $('#editUserModal').modal('show');
+                    applyTranslations();
+                } else {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: translations[currentLanguage].generalError,
+                        text: response.message || 'No se pudieron cargar los datos del usuario para edición.'
+                    });
+                }
+            } catch (error) {
+                console.error("ERROR users.html: Fallo al obtener datos de usuario para edición:", error);
+                let errorMessage = 'Error de comunicación con el servidor al cargar datos para edición.';
+                if (error.responseJSON && error.responseJSON.message) {
+                    errorMessage = error.responseJSON.message;
+                } else if (error.statusText) {
+                    errorMessage = `Error de red: ${error.statusText} (Código: ${error.status || 'N/A'})`;
+                } else if (error.message) {
+                    errorMessage = `Error JavaScript: ${error.message}`;
+                }
+                Swal.fire({
+                    icon: 'error',
+                    title: translations[currentLanguage].generalError,
+                    text: errorMessage
+                });
+            }
+        });
+
+        // Manejar el envío del formulario de Editar Usuario
+        $(document).off('submit', '#editUserForm').on('submit', '#editUserForm', async function(e) {
+            e.preventDefault();
+            console.log("DEBUG users.html: Enviando formulario de edición de usuario.");
+
+            const userId = $('#editUserId').val();
+            const userData = {
+                nombre_usuario: $('#editUserName').val(),
+                apellido: $('#editUserLastName').val(),
+                email: $('#editUserEmail').val(),
+                id_rol: parseInt($('#editUserRole').val()),
+                estado: $('#editUserStatus').val()
+            };
+            const newPassword = $('#editUserPassword').val();
+
+            // Solo añadir la contraseña si no está vacía
+            if (newPassword) {
+                userData.password = newPassword;
+            }
+
+            console.log("DEBUG users.html: Datos del usuario a actualizar (userData):", JSON.stringify(userData, null, 2));
+            console.log("DEBUG users.html: ID del usuario a actualizar:", userId);
+
+            // Validaciones básicas del formulario
+            if (!userData.nombre_usuario || !userData.apellido || !userData.email || isNaN(userData.id_rol) || !userData.estado) {
+                Swal.fire({
+                    icon: 'error',
+                    title: translations[currentLanguage].formCorrectionError,
+                    text: 'Por favor, rellena todos los campos obligatorios.'
+                });
+                return;
+            }
+
+            try {
+                console.log(`DEBUG users.html: Llamando window.ApiService.put('/usuarios/${userId}', userData, true)`);
+                const response = await window.ApiService.put(`/usuarios/${userId}`, userData, true);
+
+                if (response.status === 'success' || response.status === 'éxito') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: translations[currentLanguage].updateSuccess,
+                        text: response.message || 'Usuario actualizado exitosamente.'
+                    });
+                    $('#editUserModal').modal('hide');
+                    loadUsersAndRoles(); // Recarga la lista de usuarios
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: translations[currentLanguage].updateError,
+                        text: response.message || 'Error al actualizar el usuario.'
+                    });
+                }
+            } catch (error) {
+                console.error("ERROR users.html: Fallo al actualizar usuario (captura general):", error);
+                let errorMessage = 'Error de comunicación con el servidor al actualizar usuario.';
+                if (error.responseJSON && error.responseJSON.message) {
+                    errorMessage = error.responseJSON.message;
+                } else if (error.statusText) {
+                    errorMessage = `Error de red: ${error.statusText} (Código: ${error.status || 'N/A'})`;
+                } else if (error.message) {
+                    errorMessage = `Error JavaScript: ${error.message}`;
+                }
+                Swal.fire({
+                    icon: 'error',
+                    title: translations[currentLanguage].generalError,
+                    text: errorMessage
+                });
+            }
+        });
+
+        // Lógica para el botón "Eliminar Usuario" (delegación de eventos)
+        $(document).off('click', '.delete-user-btn').on('click', '.delete-user-btn', function() {
+            const userId = $(this).data('user-id');
+            console.log(`DEBUG users.html: Clic en 'Eliminar' para Usuario ID: ${userId}`);
+
+            // Verificación explícita de ApiService.remove
+            if (typeof window.ApiService === 'undefined' || typeof window.ApiService.remove !== 'function') {
+                console.error("ERROR users.html: window.ApiService.remove no está disponible o no es una función.");
+                Swal.fire({
+                    icon: 'error',
+                    title: translations[currentLanguage].generalError,
+                    text: 'Error interno: La función de eliminación no está disponible. Por favor, recarga la página.'
+                });
+                return;
+            }
+
+            Swal.fire({
+                title: translations[currentLanguage].confirmDeleteTitle,
+                text: translations[currentLanguage].confirmDeleteText,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: translations[currentLanguage].yesDeleteIt,
+                cancelButtonText: translations[currentLanguage].cancelButton
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    try {
+                        console.log(`DEBUG users.html: Llamando window.ApiService.remove('/usuarios/${userId}', true)`);
+                        const response = await window.ApiService.remove(`/usuarios/${userId}`, true);
+
+                        if (response.status === 'success' || response.status === 'éxito') {
+                            Swal.fire({
+                                icon: 'success',
+                                title: translations[currentLanguage].deleteSuccess,
+                                text: response.message || 'Usuario eliminado exitosamente.'
+                            });
+                            loadUsersAndRoles(); // Recarga la lista de usuarios
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: translations[currentLanguage].deleteError,
+                                text: response.message || 'Error al eliminar el usuario.'
+                            });
+                        }
+                    } catch (error) {
+                        console.error("ERROR users.html: Fallo al eliminar usuario desde la API:", error);
+                        let errorMessage = 'Error de comunicación con el servidor al eliminar usuario.';
+                        if (error.responseJSON && error.responseJSON.message) {
+                            errorMessage = error.responseJSON.message;
+                        } else if (error.statusText) {
+                            errorMessage = `Error de red: ${error.statusText} (Código: ${error.status || 'N/A'})`;
+                        } else if (error.message) {
+                            errorMessage = `Error JavaScript: ${error.message}`;
+                        }
+                        Swal.fire({
+                            icon: 'error',
+                            title: translations[currentLanguage].generalError,
+                            text: errorMessage
+                        });
+                    }
+                }
+            });
+        });
+
+        // Lógica para el filtro de búsqueda
+        $(document).off('change keyup', '#userSearch').on('change keyup', '#userSearch', function() {
+            applyFiltersAndRenderUsers();
+        });
+
+        // Lógica para el botón "Atrás"
+        $(document).off('click', '#backToDashboardBtn').on('click', '#backToDashboardBtn', function() {
+            window.loadComponent('dashboard-admin'); // Siempre vuelve al dashboard de admin desde aquí
+        });
+
+    })();
+</script>

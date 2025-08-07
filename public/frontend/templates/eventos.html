@@ -1,0 +1,494 @@
+<!-- public/frontend/templates/eventos.html -->
+
+<div class="row justify-content-center">
+    <div class="col-md-10 col-lg-10">
+        <h2 class="text-center mb-4" data-lang-key="manageEventsTitle">Gestionar Eventos</h2>
+
+        <!-- Botón Atrás -->
+        <div class="mb-3">
+            <button id="backToDashboardBtn" class="btn btn-secondary" data-lang-key="backButton">Atrás</button>
+        </div>
+
+        <!-- Barra de búsqueda -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <input type="text" class="form-control" id="eventoSearch" placeholder="Buscar eventos..." data-lang-key="searchEventsPlaceholder">
+            </div>
+        </div>
+
+        <!-- Contenedor para la tabla de eventos -->
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th data-lang-key="eventId">ID</th>
+                        <th data-lang-key="eventName">Nombre del Evento</th>
+                        <th data-lang-key="eventDateTime">Fecha y Hora</th>
+                        <th data-lang-key="eventLocation">Ubicación</th>
+                        <th data-lang-key="eventOrganizer">Organizador</th>
+                        <th data-lang-key="eventStatus">Estado</th>
+                        <th data-lang-key="actions">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="eventosTableBody">
+                    <!-- Las filas de eventos se cargarán aquí dinámicamente -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Botón para Añadir Evento -->
+        <div class="d-grid gap-2 mt-4">
+            <button id="addEventoBtn" class="btn btn-success btn-lg" data-lang-key="addEvent">Añadir Evento</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Añadir/Editar Evento -->
+<div class="modal fade" id="eventoModal" tabindex="-1" aria-labelledby="eventoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="eventoModalLabel" data-lang-key="addEvent">Añadir Evento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="eventoForm">
+                    <input type="hidden" id="eventoId">
+                    <div class="mb-3">
+                        <label for="eventoNombre" class="form-label" data-lang-key="eventNameLabel">Nombre del Evento:</label>
+                        <input type="text" class="form-control" id="eventoNombre" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="eventoDescripcion" class="form-label" data-lang-key="eventDescriptionLabel">Descripción:</label>
+                        <textarea class="form-control" id="eventoDescripcion" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="eventoFechaHora" class="form-label" data-lang-key="eventDateTime">Fecha y Hora:</label>
+                        <input type="datetime-local" class="form-control" id="eventoFechaHora" required>
+                        <!-- Nuevo elemento para mostrar la fecha/hora en modo "Ver Detalles" -->
+                        <p id="displayFechaHora" class="form-control-plaintext mt-2" style="display: none;"></p>
+                    </div>
+                    <div class="mb-3">
+                        <label for="eventoUbicacion" class="form-label" data-lang-key="eventLocationLabel">Ubicación:</label>
+                        <input type="text" class="form-control" id="eventoUbicacion" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="eventoOrganizador" class="form-label" data-lang-key="eventOrganizerLabel">Organizador:</label>
+                        <input type="text" class="form-control" id="eventoOrganizador">
+                    </div>
+                    <div class="mb-3">
+                        <label for="eventoCupoMaximo" class="form-label" data-lang-key="eventMaxCapacityLabel">Cupo Máximo:</label>
+                        <input type="number" class="form-control" id="eventoCupoMaximo" min="0">
+                    </div>
+                    <div class="mb-3">
+                        <label for="eventoEstado" class="form-label" data-lang-key="eventStatusLabel">Estado:</label>
+                        <select class="form-select" id="eventoEstado" required>
+                            <option value="programado" data-lang-key="statusProgramado">Programado</option>
+                            <option value="cancelado" data-lang-key="statusCancelado">Cancelado</option>
+                            <option value="completado" data-lang-key="statusCompletado">Completado</option>
+                        </select>
+                        <!-- Nuevo elemento para mostrar el estado en modo "Ver Detalles" -->
+                        <p id="displayEstado" class="form-control-plaintext mt-2" style="display: none;"></p>
+                    </div>
+                    <button type="submit" class="btn btn-primary" data-lang-key="saveEvent">Guardar Evento</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Script para eventos.html
+    $(function() { // Shorthand for $(document).ready()
+        console.log("DEBUG eventos.html: Iniciando carga del script y esperando al DOM.");
+        applyTranslations(); // Aplicar traducciones a los elementos estáticos iniciales
+
+        const eventosTableBody = $('#eventosTableBody');
+        let allEventosData = []; // Variable para almacenar todos los eventos cargados
+        let isSubmittingEvento = false; // Bandera para evitar doble submit
+
+        // --- Declaración de Funciones (Orden Importante: Dependencias primero) ---
+        
+        function renderEventosTable(eventosArray) {
+            console.log("DEBUG renderEventosTable: Limpiando tabla y preparando para renderizar.");
+            eventosTableBody.empty(); // Limpiar la tabla antes de renderizar
+            console.log("DEBUG renderEventosTable: Data a renderizar:", eventosArray); 
+            
+            if (eventosArray.length === 0) {
+                eventosTableBody.html(`<tr><td colspan="7" class="text-center py-3"><p data-lang-key="noRecordsFound">${translations[currentLanguage].noRecordsFound}</p></td></tr>`);
+                applyTranslations();
+                return;
+            }
+
+            eventosArray.forEach(evento => {
+                // Convertir el estado a minúsculas antes de capitalizar la primera letra para la clave de traducción
+                const estadoLower = (evento.estado || '').toLowerCase();
+                const estadoKey = estadoLower ? `status${estadoLower.charAt(0).toUpperCase() + estadoLower.slice(1)}` : '';
+                const estadoDisplay = translations[currentLanguage][estadoKey] || evento.estado || 'N/A';
+                
+                // Formatear fecha y hora para la tabla
+                let formattedDateTimeTable = 'N/A';
+                try {
+                    if (evento.fecha_hora) {
+                        const dateObj = new Date(evento.fecha_hora);
+                        if (!isNaN(dateObj.getTime())) { // Verificar si la fecha es válida
+                            formattedDateTimeTable = dateObj.toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
+                        } else {
+                            console.warn(`WARN renderEventosTable: Fecha inválida para evento ID ${evento.id_evento}: '${evento.fecha_hora}'`);
+                        }
+                    }
+                } catch (dateError) {
+                    console.error(`ERROR renderEventosTable: Fallo al formatear fecha para evento ID ${evento.id_evento}:`, evento.fecha_hora, dateError);
+                }
+
+                const row = `
+                    <tr>
+                        <td>${evento.id_evento || 'N/A'}</td>
+                        <td>${evento.nombre_evento || 'N/A'}</td>
+                        <td>${formattedDateTimeTable}</td>
+                        <td>${evento.ubicacion || 'N/A'}</td>
+                        <td>${evento.organizador || 'N/A'}</td>
+                        <td>${estadoDisplay}</td>
+                        <td>
+                            <button class="btn btn-info btn-sm view-evento-btn" data-evento-id="${evento.id_evento}" data-lang-key="viewDetails">Ver Detalles</button>
+                            <button class="btn btn-warning btn-sm edit-evento-btn ms-1" data-evento-id="${evento.id_evento}" data-lang-key="editButton">Editar</button>
+                            <button class="btn btn-danger btn-sm delete-evento-btn ms-1" data-evento-id="${evento.id_evento}" data-lang-key="deleteButton">Eliminar</button>
+                        </td>
+                    </tr>
+                `;
+                eventosTableBody.append(row);
+            });
+            applyTranslations(); // Volver a aplicar traducciones a los botones recién creados
+        }
+
+        function applyFiltersAndRenderEventos() {
+            let filteredEventos = [...allEventosData];
+            const searchTerm = $('#eventoSearch').val().toLowerCase().trim();
+
+            if (searchTerm) {
+                filteredEventos = filteredEventos.filter(evento =>
+                    (evento.id_evento && String(evento.id_evento).includes(searchTerm)) ||
+                    (evento.nombre_evento && evento.nombre_evento.toLowerCase().includes(searchTerm)) ||
+                    (evento.descripcion && evento.descripcion.toLowerCase().includes(searchTerm)) ||
+                    (evento.fecha_hora && evento.fecha_hora.toLowerCase().includes(searchTerm)) ||
+                    (evento.ubicacion && evento.ubicacion.toLowerCase().includes(searchTerm)) ||
+                    (evento.organizador && evento.organizador.toLowerCase().includes(searchTerm)) ||
+                    (evento.estado && evento.estado.toLowerCase().includes(searchTerm))
+                );
+            }
+            renderEventosTable(filteredEventos);
+        }
+
+        async function loadEventos() {
+            console.count("DEBUG: loadEventos called"); // Contar cuántas veces se llama
+            eventosTableBody.html('<tr><td colspan="7" class="text-center py-3"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div><p class="mt-2">Cargando eventos...</p></td></tr>');
+
+            try {
+                console.log("DEBUG eventos.html: Llamando window.ApiService.get('/eventos', true) para cargar eventos.");
+                const response = await window.ApiService.get('/eventos', true); 
+                console.log("DEBUG eventos.html: Respuesta de la API al cargar eventos:", response);
+
+                if (response.status === 'success' || response.status === 'éxito') {
+                    if (response.data && response.data.length > 0) {
+                        console.log("DEBUG loadEventos: Data recibida de la API:", response.data); 
+                        allEventosData = response.data;
+                        applyFiltersAndRenderEventos();
+                        console.log("DEBUG eventos.html: Eventos cargados y renderizados exitosamente.");
+                    } else {
+                        eventosTableBody.html(`<tr><td colspan="7" class="text-center py-3"><p data-lang-key="noRecordsFound">${translations[currentLanguage].noRecordsFound}</p></td></tr>`);
+                        applyTranslations();
+                        console.log("DEBUG eventos.html: La API devolvió éxito pero sin datos.");
+                    }
+                } else if (response.status === 'info') {
+                    eventosTableBody.html(`<tr><td colspan="7" class="text-center py-3"><p data-lang-key="noRecordsFound">${translations[currentLanguage].noRecordsFound}</p></td></tr>`);
+                    applyTranslations();
+                    console.log("DEBUG eventos.html: La API informó que no se encontraron eventos.");
+                } 
+                else {
+                    console.error("ERROR eventos.html: La API devolvió un error al cargar eventos:", response.message || response);
+                    eventosTableBody.html(`<tr><td colspan="7" class="text-center py-3"><p class="text-danger" data-lang-key="generalError">${translations[currentLanguage].generalError}: ${response.message || 'Error desconocido de la API.'}</p></td></tr>`);
+                    applyTranslations();
+                    Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: response.message || 'Error al cargar los eventos.' });
+                }
+            } catch (error) {
+                console.error("ERROR eventos.html: Fallo al cargar eventos (captura general):", error);
+                let errorMessage = 'Error de comunicación con el servidor al cargar eventos.';
+                if (error.responseJSON && error.responseJSON.message) { errorMessage = error.responseJSON.message; } 
+                else if (error.statusText) { errorMessage = `Error de red: ${error.statusText} (Código: ${error.status || 'N/A'})`; } 
+                else if (error.message) { errorMessage = `Error JavaScript: ${error.message}`; }
+                eventosTableBody.html(`<tr><td colspan="7" class="text-center py-3"><p class="text-danger" data-lang-key="generalError">${translations[currentLanguage].generalError}: ${errorMessage}</p></td></tr>`);
+                applyTranslations();
+                Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: errorMessage });
+            }
+        }
+
+        // Cargar eventos al cargar el componente
+        loadEventos();
+
+        // --- Event Listeners con Namespaces ---
+
+        // Manejar clic en el botón "Añadir Evento"
+        $(document).on('click.eventos', '#addEventoBtn', function() {
+            $('#eventoForm')[0].reset(); // Limpiar el formulario
+            $('#eventoId').val(''); // Asegurarse de que el ID esté vacío para añadir
+            $('#eventoModalLabel').attr('data-lang-key', 'addEvent').text(translations[currentLanguage].addEvent); // Cambiar título del modal
+            
+            // Mostrar inputs y ocultar elementos de solo lectura
+            $('#eventoFechaHora').show().prop('disabled', false);
+            $('#displayFechaHora').hide();
+            $('#eventoEstado').show().prop('disabled', false);
+            $('#displayEstado').hide();
+
+            // Asegurarse de que la opción "Programado" esté seleccionada por defecto al añadir
+            $('#eventoEstado').val('programado');
+
+            // Habilitar todos los campos para edición
+            $('#eventoForm input, #eventoForm select, #eventoForm textarea').prop('disabled', false);
+            $('#eventoForm button[type="submit"]').show(); // Mostrar el botón de guardar
+
+            $('#eventoModal').modal('show');
+            applyTranslations();
+        });
+
+        // Manejar clic en el botón "Editar"
+        $(document).on('click.eventos', '.edit-evento-btn', async function() {
+            const eventoId = $(this).data('evento-id');
+            console.log(`DEBUG eventos.html: Clic en 'Editar' para Evento ID: ${eventoId}`);
+
+            try {
+                const response = await window.ApiService.get(`/eventos/${eventoId}`, true);
+                if ((response.status === 'success' || response.status === 'éxito') && response.data) {
+                    const evento = response.data;
+                    $('#eventoId').val(evento.id_evento);
+                    $('#eventoNombre').val(evento.nombre_evento);
+                    $('#eventoDescripcion').val(evento.descripcion);
+                    
+                    // Formatear fecha_hora para input datetime-local
+                    const dateTime = new Date(evento.fecha_hora);
+                    // Asegurarse de que la fecha sea válida antes de formatear
+                    const formattedDateTime = isNaN(dateTime.getTime()) ? '' : dateTime.toISOString().slice(0, 16); // YYYY-MM-DDTHH:MM
+                    $('#eventoFechaHora').val(formattedDateTime);
+                    
+                    $('#eventoUbicacion').val(evento.ubicacion);
+                    $('#eventoOrganizador').val(evento.organizador);
+                    $('#eventoCupoMaximo').val(evento.cupo_maximo);
+                    $('#eventoEstado').val(evento.estado);
+
+                    // Mostrar inputs y ocultar elementos de solo lectura
+                    $('#eventoFechaHora').show().prop('disabled', false);
+                    $('#displayFechaHora').hide();
+                    $('#eventoEstado').show().prop('disabled', false);
+                    $('#displayEstado').hide();
+
+                    // Habilitar todos los campos para edición
+                    $('#eventoForm input, #eventoForm select, #eventoForm textarea').prop('disabled', false);
+                    $('#eventoForm button[type="submit"]').show(); // Mostrar el botón de guardar
+
+                    $('#eventoModalLabel').attr('data-lang-key', 'editEvent').text(translations[currentLanguage].editEvent); // Cambiar título del modal
+                    $('#eventoModal').modal('show');
+                    applyTranslations();
+                } else {
+                    Swal.fire({ icon: 'warning', title: translations[currentLanguage].generalError, text: response.message || 'No se pudieron cargar los detalles del evento.' });
+                }
+            } catch (error) {
+                console.error("ERROR eventos.html: Fallo al cargar detalles del evento:", error);
+                Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: 'Error al cargar los detalles del evento.' });
+            }
+        });
+
+        // Manejar envío del formulario de Añadir/Editar Evento
+        const $eventoForm = $('#eventoForm');
+        $eventoForm.off('submit.eventos').on('submit.eventos', async function(e) {
+            e.preventDefault();
+
+            // Prevenir el doble submit
+            if (isSubmittingEvento) {
+                console.warn("DEBUG eventos.html: Intento de doble submit detectado y prevenido.");
+                return; 
+            }
+            isSubmittingEvento = true; // Marcar que se está enviando
+
+            console.log("DEBUG eventos.html: ¡Manejador de SUBMIT del formulario activado!");
+            console.log("DEBUG eventos.html: Enviando formulario de evento.");
+
+            const eventoId = $('#eventoId').val();
+            console.log("DEBUG eventos.html: ID del evento para guardar/editar:", eventoId);
+            const eventoData = {
+                nombre_evento: $('#eventoNombre').val(),
+                descripcion: $('#eventoDescripcion').val() || null,
+                fecha_hora: $('#eventoFechaHora').val(), // Se envía en formato YYYY-MM-DDTHH:MM
+                ubicacion: $('#eventoUbicacion').val(),
+                organizador: $('#eventoOrganizador').val() || null,
+                cupo_maximo: $('#eventoCupoMaximo').val() || null,
+                estado: $('#eventoEstado').val()
+            };
+
+            console.log("DEBUG eventos.html: Datos a enviar para guardar/editar:", eventoData);
+
+            try {
+                let response;
+                if (eventoId) { // Editar
+                    console.log(`DEBUG eventos.html: Llamando window.ApiService.put('/eventos/${eventoId}', eventoData, true)`);
+                    response = await window.ApiService.put(`/eventos/${eventoId}`, eventoData, true);
+                } else { // Añadir
+                    console.log("DEBUG eventos.html: Llamando window.ApiService.post('/eventos', eventoData, true)");
+                    response = await window.ApiService.post('/eventos', eventoData, true);
+                }
+
+                console.log("DEBUG eventos.html: Respuesta completa de la API al guardar/editar evento:", response);
+
+                if (response.status === 'success' || response.status === 'éxito') {
+                    Swal.fire({ icon: 'success', title: translations[currentLanguage].updateSuccess, text: response.message || 'Evento guardado exitosamente.' });
+                    $('#eventoModal').modal('hide');
+                    loadEventos(); // Recargar la lista
+                } else if (response.status === 'info') { // Manejar el caso de "no cambios" como info
+                    Swal.fire({ icon: 'info', title: translations[currentLanguage].infoTitle, text: response.message || 'No se realizaron cambios en el evento.' });
+                    $('#eventoModal').modal('hide');
+                    loadEventos(); // Recargar la lista por si acaso
+                }
+                else {
+                    Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: response.message || 'Error al guardar el evento.' });
+                }
+            } catch (error) {
+                console.error("ERROR eventos.html: Fallo al guardar evento (captura general):", error);
+                let errorMessage = 'Error de comunicación con el servidor al guardar evento.';
+                if (error.responseJSON && error.responseJSON.message) { errorMessage = error.responseJSON.message; } 
+                else if (error.statusText) { errorMessage = `Error de red: ${error.statusText} (Código: ${error.status || 'N/A'})`; } 
+                else if (error.message) { errorMessage = `Error JavaScript: ${error.message}`; }
+                Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: errorMessage });
+            } finally {
+                isSubmittingEvento = false; // Restablecer el flag en cualquier caso
+            }
+        });
+
+        // Manejar clic en el botón "Ver Detalles" (ahora usa elementos de solo lectura)
+        $(document).on('click.eventos', '.view-evento-btn', async function() {
+            const eventoId = $(this).data('evento-id');
+            console.log(`DEBUG eventos.html: Clic en 'Ver Detalles' para Evento ID: ${eventoId}`);
+
+            try {
+                const response = await window.ApiService.get(`/eventos/${eventoId}`, true);
+                if ((response.status === 'success' || response.status === 'éxito') && response.data) {
+                    const evento = response.data;
+                    
+                    // Deshabilitar todos los campos del formulario
+                    $('#eventoForm input, #eventoForm select, #eventoForm textarea').prop('disabled', true);
+                    $('#eventoForm button[type="submit"]').hide(); // Ocultar el botón de guardar
+
+                    // Ocultar inputs y mostrar elementos de solo lectura
+                    $('#eventoFechaHora').hide();
+                    $('#displayFechaHora').show();
+                    $('#eventoEstado').hide();
+                    $('#displayEstado').show();
+
+                    // Rellenar campos de solo lectura
+                    $('#eventoId').val(evento.id_evento); // El ID puede quedarse en el hidden input
+                    $('#eventoNombre').val(evento.nombre_evento);
+                    $('#eventoDescripcion').val(evento.descripcion);
+                    
+                    // Formatear fecha y hora para la visualización amigable
+                    let formattedDisplayDateTime = 'N/A';
+                    try {
+                        const dateTime = new Date(evento.fecha_hora);
+                        if (!isNaN(dateTime.getTime())) {
+                            formattedDisplayDateTime = dateTime.toLocaleString(currentLanguage === 'es' ? 'es-ES' : 'en-US', { dateStyle: 'full', timeStyle: 'short' });
+                        } else {
+                            console.warn(`WARN: Modal Detalles - Fecha inválida para evento ID ${evento.id_evento}: '${evento.fecha_hora}'`);
+                        }
+                    } catch (dateError) {
+                        console.error(`ERROR: Modal Detalles - Fallo al formatear fecha para evento ID ${evento.id_evento}:`, evento.fecha_hora, dateError);
+                    }
+                    $('#displayFechaHora').text(formattedDisplayDateTime);
+                    
+                    $('#eventoUbicacion').val(evento.ubicacion);
+                    $('#eventoOrganizador').val(evento.organizador);
+                    $('#eventoCupoMaximo').val(evento.cupo_maximo);
+                    
+                    // Mostrar el estado traducido
+                    const estadoLower = (evento.estado || '').toLowerCase(); // Convertir a minúsculas
+                    const estadoKey = estadoLower ? `status${estadoLower.charAt(0).toUpperCase() + estadoLower.slice(1)}` : ''; // Capitalizar primera letra
+                    const estadoDisplay = translations[currentLanguage][estadoKey] || evento.estado || 'N/A';
+                    console.log(`DEBUG: Modal Detalles - Estado DB: '${evento.estado}', Estado Lower: '${estadoLower}', Estado Key: '${estadoKey}', Estado Display: '${estadoDisplay}'`);
+
+                    $('#displayEstado').text(estadoDisplay);
+
+                    $('#eventoModalLabel').attr('data-lang-key', 'eventDetailsTitle').text(translations[currentLanguage].eventDetailsTitle);
+                    $('#eventoModal').modal('show');
+                    applyTranslations();
+
+                    // Cuando el modal se cierra, re-habilitar los campos y mostrar el botón de guardar
+                    $('#eventoModal').one('hidden.bs.modal', function () {
+                        $('#eventoForm input, #eventoForm select, #eventoForm textarea').prop('disabled', false);
+                        $('#eventoForm button[type="submit"]').show();
+                        // Ocultar elementos de solo lectura y mostrar inputs
+                        $('#eventoFechaHora').show();
+                        $('#displayFechaHora').hide();
+                        $('#eventoEstado').show();
+                        $('#displayEstado').hide();
+                    });
+
+                } else {
+                    Swal.fire({ icon: 'warning', title: translations[currentLanguage].generalError, text: response.message || 'No se pudieron cargar los detalles del evento.' });
+                }
+            } catch (error) {
+                console.error("ERROR eventos.html: Fallo al cargar detalles del evento para ver:", error);
+                Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: 'Error al cargar los detalles del evento.' });
+            }
+        });
+
+        // Lógica para el botón "Eliminar Evento"
+        $(document).on('click.eventos', '.delete-evento-btn', function() {
+            const eventoId = $(this).data('evento-id');
+            console.log(`DEBUG eventos.html: Clic en 'Eliminar' para Evento ID: ${eventoId}`);
+
+            Swal.fire({
+                title: translations[currentLanguage].confirmDeleteTitle, text: translations[currentLanguage].confirmDeleteText,
+                icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#3085d6',
+                confirmButtonText: translations[currentLanguage].yesDeleteIt, cancelButtonText: translations[currentLanguage].cancelButton
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    try {
+                        const response = await window.ApiService.remove(`/eventos/${eventoId}`, true);
+
+                        if (response.status === 'success' || response.status === 'éxito') {
+                            Swal.fire({ icon: 'success', title: translations[currentLanguage].deleteSuccess, text: response.message || 'Evento eliminado exitosamente.' });
+                            loadEventos();
+                        } else {
+                            Swal.fire({ icon: 'error', title: translations[currentLanguage].deleteError, text: response.message || 'Error al eliminar el evento.' });
+                        }
+                    } catch (error) {
+                        console.error("ERROR eventos.html: Fallo al eliminar evento desde la API:", error);
+                        let errorMessage = 'Error de comunicación con el servidor al eliminar evento.';
+                        if (error.responseJSON && error.responseJSON.message) { errorMessage = error.responseJSON.message; } 
+                        else if (error.statusText) { errorMessage = `Error de red: ${error.statusText} (Código: ${error.status || 'N/A'})`; } 
+                        else if (error.message) { errorMessage = `Error JavaScript: ${error.message}`; }
+                        Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: errorMessage });
+                    }
+                }
+            });
+        });
+
+        // Lógica para el filtro de búsqueda
+        $(document).on('change.eventos keyup.eventos', '#eventoSearch', function() {
+            applyFiltersAndRenderEventos();
+        });
+
+        // Lógica para el botón "Atrás"
+        $(document).on('click.eventos', '#backToDashboardBtn', function() {
+            window.loadComponent('dashboard-admin');
+        });
+
+        // --- Limpieza de eventos al salir del componente ---
+        $(document).on('componentUnloaded.eventosCleanup', function(event, unloadedComponentName) {
+            if (unloadedComponentName === 'eventos') {
+                console.log("DEBUG eventos.html: ¡componentUnloaded para eventos detectado! Limpiando listeners.");
+                $(document).off('.eventos'); // Desvincular todos los event listeners con el namespace '.eventos'
+                $('#eventoForm').off('submit.eventos'); // Desvincular el evento submit directamente del formulario
+                $(document).off('componentUnloaded.eventosCleanup'); // Desvincular este propio listener
+                
+                console.log("DEBUG eventos.html: Event listeners de eventos limpiados.");
+            }
+        });
+
+    }); // Cierre de $(function() { ... });
+</script>

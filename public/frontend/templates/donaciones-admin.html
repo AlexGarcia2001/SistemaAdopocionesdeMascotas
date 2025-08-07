@@ -1,0 +1,438 @@
+<!-- public/frontend/templates/donaciones-admin.html -->
+<div class="row justify-content-center">
+    <div class="col-md-12 col-lg-10">
+        <h2 class="text-center mb-4" data-lang-key="donationsManagementTitle">Gestión de Donaciones</h2>
+        
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <button id="backToAdminDashboardBtn" class="btn btn-secondary btn-sm" data-lang-key="backToDashboard">Volver al Panel</button>
+            <button id="addDonationBtn" class="btn btn-primary" data-lang-key="addDonation">Añadir Donación</button>
+        </div>
+
+        <div class="alert alert-info text-center" role="alert" id="loadingMessage" data-lang-key="loadingDonations">Cargando donaciones...</div>
+        <div class="alert alert-danger text-center" role="alert" id="errorMessage" style="display: none;" data-lang-key="errorLoadingDonations">Error al cargar las donaciones.</div>
+        <div class="alert alert-warning text-center" role="alert" id="noDataMessage" style="display: none;" data-lang-key="noDonationsFound">No se encontraron donaciones.</div>
+
+        <div class="table-responsive">
+            <table class="table table-striped table-hover shadow-sm rounded-3 overflow-hidden">
+                <thead class="bg-primary text-white">
+                    <tr>
+                        <th data-lang-key="tableHeaderId">ID</th>
+                        <th data-lang-key="tableHeaderDonor">Donante</th>
+                        <th data-lang-key="tableHeaderShelterDestination">Refugio Destino</th>
+                        <th data-lang-key="tableHeaderDonationDate">Fecha</th>
+                        <th data-lang-key="tableHeaderAmount">Cantidad</th>
+                        <th data-lang-key="tableHeaderCurrency">Moneda</th>
+                        <th data-lang-key="tableHeaderPaymentMethod">Método de Pago</th>
+                        <th data-lang-key="tableHeaderActions">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="donationsTableBody">
+                    <!-- Las donaciones se cargarán aquí dinámicamente -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Añadir/Editar Donación -->
+<div class="modal fade" id="donationModal" tabindex="-1" aria-labelledby="donationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="donationModalLabel" data-lang-key="addDonationTitle">Añadir Nueva Donación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="donationForm">
+                    <input type="hidden" id="donationId">
+
+                    <div class="mb-3">
+                        <label for="idUsuarioDonante" class="form-label" data-lang-key="formLabelDonorUser">Usuario Donante:</label>
+                        <select class="form-select" id="idUsuarioDonante" required>
+                            <option value="" data-lang-key="selectDonorUser">Selecciona un usuario donante...</option>
+                            <!-- Opciones cargadas dinámicamente -->
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="idRefugio" class="form-label" data-lang-key="formLabelShelterDestination">Refugio Destino (Opcional):</label>
+                        <select class="form-select" id="idRefugio">
+                            <option value="" data-lang-key="selectOptionalShelter">Selecciona un refugio (opcional)...</option>
+                            <!-- Opciones cargadas dinámicamente -->
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="fechaDonacion" class="form-label" data-lang-key="formLabelDonationDate">Fecha y Hora de Donación:</label>
+                        <input type="datetime-local" class="form-control" id="fechaDonacion" required> <!-- CAMBIO AQUI -->
+                    </div>
+                    <div class="mb-3">
+                        <label for="cantidad" class="form-label" data-lang-key="formLabelAmount">Cantidad:</label>
+                        <input type="number" class="form-control" id="cantidad" step="0.01" min="0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="moneda" class="form-label" data-lang-key="formLabelCurrency">Moneda:</label>
+                        <select class="form-select" id="moneda" required>
+                            <option value="" data-lang-key="selectCurrency">Selecciona una moneda...</option>
+                            <option value="USD">USD - Dólar Estadounidense</option>
+                            <option value="EUR">EUR - Euro</option>
+                            <option value="HNL">HNL - Lempira Hondureña</option>
+                            <option value="MXN">MXN - Peso Mexicano</option>
+                            <option value="CRC">CRC - Colón Costarricense</option>
+                            <!-- Agrega más opciones de moneda si es necesario -->
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="metodoPago" class="form-label" data-lang-key="formLabelPaymentMethod">Método de Pago:</label>
+                        <select class="form-select" id="metodoPago" required>
+                            <option value="" data-lang-key="selectPaymentMethod">Selecciona un método...</option>
+                            <option value="Tarjeta de Crédito" data-lang-key="paymentMethodCreditCard">Tarjeta de Crédito</option>
+                            <option value="PayPal" data-lang-key="paymentMethodPayPal">PayPal</option>
+                            <option value="Transferencia Bancaria" data-lang-key="paymentMethodBankTransfer">Transferencia Bancaria</option>
+                            <option value="Efectivo" data-lang-key="paymentMethodCash">Efectivo</option>
+                            <option value="Otro" data-lang-key="paymentMethodOther">Otro</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" data-lang-key="saveDonation">Guardar Donación</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        let isDonationsAdminScriptInitialized = false;
+        let allUsuarios = []; // Para el selector de donantes
+        let allRefugios = []; // Para el selector de refugio destino
+
+        function initializeDonationsAdminScript() {
+            if (isDonationsAdminScriptInitialized) {
+                console.log("DEBUG donaciones-admin.html: Script ya inicializado, no se reinicializa.");
+                loadDonations(); // Solo recargar datos si ya está inicializado
+                return;
+            }
+
+            isDonationsAdminScriptInitialized = true;
+            console.log("DEBUG donaciones-admin.html: Iniciando carga del script de donaciones-admin y esperando al DOM.");
+            applyTranslations();
+
+            const loadingMessage = $('#loadingMessage');
+            const errorMessage = $('#errorMessage');
+            const noDataMessage = $('#noDataMessage');
+            const donationsTableBody = $('#donationsTableBody');
+            const donationModal = new bootstrap.Modal(document.getElementById('donationModal'));
+
+            // No necesitamos currentAdminId ni creadoPorIdUsuario si no está en la estructura de la DB
+            // (Comentado ya que la estructura de la DB no lo incluye)
+
+            // Función para cargar usuarios y refugios para los selectores del formulario
+            async function loadFormSelectsData() {
+                console.log("DEBUG donaciones-admin.html: Cargando datos para selectores de formulario...");
+                try {
+                    const [usersResponse, refugiosResponse] = await Promise.all([
+                        window.ApiService.get('/usuarios', true), // Obtener todos los usuarios para el donante
+                        window.ApiService.get('/refugios', true)   // Obtener todos los refugios para la designación (opcional)
+                    ]);
+
+                    // Cargar usuarios para el selector de donantes
+                    if ((usersResponse.status === 'success' || usersResponse.status === 'éxito') && Array.isArray(usersResponse.data)) {
+                        allUsuarios = usersResponse.data;
+                        const donanteSelect = $('#idUsuarioDonante');
+                        donanteSelect.empty().append($('<option>', {
+                            value: '',
+                            text: translations[currentLanguage].selectDonorUser || 'Selecciona un usuario donante...'
+                        }));
+                        allUsuarios.forEach(user => {
+                            donanteSelect.append($('<option>', {
+                                value: user.id_usuario,
+                                text: `${user.nombre_usuario} (${user.email})`
+                            }));
+                        });
+                        console.log("DEBUG donaciones-admin.html: Usuarios cargados para el selector de donantes.");
+                    } else {
+                        console.error("ERROR donaciones-admin.html: Fallo al cargar usuarios:", usersResponse.message);
+                        Swal.fire('Error', translations[currentLanguage].errorLoadingUsers || 'No se pudieron cargar los usuarios para el formulario.', 'error');
+                    }
+
+                    // Cargar refugios para el selector de refugio destino (opcional)
+                    if ((refugiosResponse.status === 'success' || refugiosResponse.status === 'éxito') && Array.isArray(refugiosResponse.data)) {
+                        allRefugios = refugiosResponse.data;
+                        const refugioSelect = $('#idRefugio');
+                        refugioSelect.empty().append($('<option>', {
+                            value: '',
+                            text: translations[currentLanguage].selectOptionalShelter || 'Selecciona un refugio (opcional)...'
+                        }));
+                        allRefugios.forEach(refugio => {
+                            refugioSelect.append($('<option>', {
+                                value: refugio.id_refugio,
+                                text: `${refugio.nombre}` // Asumiendo que el refugio tiene un campo 'nombre'
+                            }));
+                        });
+                        console.log("DEBUG donaciones-admin.html: Refugios cargados para el selector de destino.");
+                    } else {
+                        console.warn("ADVERTENCIA donaciones-admin.html: Fallo al cargar refugios para el selector de destino (opcional):", refugiosResponse.message);
+                        // No es un error crítico si los refugios no se cargan para una donación opcional
+                    }
+
+                } catch (error) {
+                    console.error("ERROR donaciones-admin.html: Fallo general al cargar datos para selectores:", error);
+                    Swal.fire('Error', translations[currentLanguage].communicationError || 'Error de comunicación al cargar datos para el formulario.', 'error');
+                }
+            }
+
+            // Función para cargar las donaciones y llenar la tabla
+            async function loadDonations() {
+                console.log("DEBUG donaciones-admin.html: Cargando donaciones...");
+                loadingMessage.show();
+                errorMessage.hide();
+                noDataMessage.hide();
+                donationsTableBody.empty();
+
+                try {
+                    const response = await window.ApiService.get('/donaciones', true);
+                    console.log("DEBUG donaciones-admin.html: Respuesta de API para donaciones:", response);
+
+                    loadingMessage.hide();
+
+                    if ((response.status === 'success' || response.status === 'éxito') && Array.isArray(response.data) && response.data.length > 0) {
+                        response.data.forEach(donacion => {
+                            // Buscar el nombre del donante y del refugio por sus IDs
+                            const donante = allUsuarios.find(u => u.id_usuario === donacion.id_usuario);
+                            const nombreDonante = donante ? donante.nombre_usuario : 'Anónimo';
+
+                            const refugio = allRefugios.find(r => r.id_refugio === donacion.id_refugio);
+                            const nombreRefugio = refugio ? refugio.nombre : 'General'; // Asumiendo que refugio tiene 'nombre'
+
+                            // Formatear la fecha para la visualización en la tabla (opcionalmente sin segundos)
+                            const fechaHoraDisplay = donacion.fecha_donacion ? new Date(donacion.fecha_donacion).toLocaleString() : 'N/A';
+
+                            const row = `
+                                <tr>
+                                    <td>${donacion.id_donacion}</td>
+                                    <td>${nombreDonante}</td>
+                                    <td>${nombreRefugio}</td>
+                                    <td>${fechaHoraDisplay}</td> <!-- Usar fechaHoraDisplay -->
+                                    <td>${parseFloat(donacion.cantidad).toFixed(2)}</td>
+                                    <td>${donacion.moneda}</td>
+                                    <td>${donacion.metodo_pago}</td>
+                                    <td>
+                                        <button class="btn btn-info btn-sm edit-donation-btn" data-id="${donacion.id_donacion}" data-lang-key="editButton"><i class="fas fa-edit"></i></button>
+                                        <button class="btn btn-danger btn-sm delete-donation-btn" data-id="${donacion.id_donacion}" data-lang-key="deleteButton"><i class="fas fa-trash-alt"></i></button>
+                                    </td>
+                                </tr>
+                            `;
+                            donationsTableBody.append(row);
+                        });
+                    } else {
+                        noDataMessage.show();
+                    }
+                } catch (error) {
+                    console.error("ERROR donaciones-admin.html: Fallo al cargar donaciones:", error);
+                    errorMessage.show().text(translations[currentLanguage].errorLoadingDonations || 'Error al cargar las donaciones.');
+                }
+            }
+
+            // --- Event Listeners ---
+
+            // Botón "Volver al Panel"
+            $(document).off('click.donationsAdminBack').on('click.donationsAdminBack', '#backToAdminDashboardBtn', function() {
+                window.loadComponent('dashboard-admin');
+            });
+
+            // Botón "Añadir Donación"
+            $(document).off('click.donationsAdminAdd').on('click.donationsAdminAdd', '#addDonationBtn', async function() {
+                console.log("DEBUG donaciones-admin.html: Clic en 'Añadir Donación'.");
+                $('#donationForm')[0].reset(); // Limpiar formulario
+                $('#donationId').val(''); // Asegurar que ID esté vacío para crear
+                $('#donationModalLabel').text(translations[currentLanguage].addDonationTitle || 'Añadir Nueva Donación');
+                await loadFormSelectsData(); // Recargar datos para los selectores
+                
+                // Establecer la fecha y hora actual por defecto al añadir una nueva donación
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = (now.getMonth() + 1).toString().padStart(2, '0');
+                const day = now.getDate().toString().padStart(2, '0');
+                const hours = now.getHours().toString().padStart(2, '0');
+                const minutes = now.getMinutes().toString().padStart(2, '0');
+                const currentDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+                $('#fechaDonacion').val(currentDateTime);
+
+                donationModal.show();
+            });
+
+            // Editar Donación
+            $(document).off('click.donationsAdminEdit').on('click.donationsAdminEdit', '.edit-donation-btn', async function() {
+                const id = $(this).data('id');
+                console.log(`DEBUG donaciones-admin.html: Clic en 'Editar Donación' para ID: ${id}`);
+                
+                $('#donationModalLabel').text(translations[currentLanguage].editDonationTitle || 'Editar Donación');
+                await loadFormSelectsData(); // Cargar datos para los selectores antes de poblar el formulario
+
+                try {
+                    const response = await window.ApiService.get(`/donaciones/${id}`, true);
+                    if ((response.status === 'success' || response.status === 'éxito') && response.data) {
+                        const donacion = response.data;
+                        $('#donationId').val(donacion.id_donacion);
+                        $('#idUsuarioDonante').val(donacion.id_usuario);
+                        $('#idRefugio').val(donacion.id_refugio || '');
+                        
+                        // Formatear la fecha y hora para el input datetime-local
+                        if (donacion.fecha_donacion) {
+                            // Asumimos que la API devuelve un formato compatible con Date() o YYYY-MM-DD HH:MM:SS
+                            const dateObj = new Date(donacion.fecha_donacion);
+                            const year = dateObj.getFullYear();
+                            const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+                            const day = dateObj.getDate().toString().padStart(2, '0');
+                            const hours = dateObj.getHours().toString().padStart(2, '0');
+                            const minutes = dateObj.getMinutes().toString().padStart(2, '0');
+                            const formattedDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+                            $('#fechaDonacion').val(formattedDateTime);
+                        } else {
+                            $('#fechaDonacion').val('');
+                        }
+
+                        $('#cantidad').val(parseFloat(donacion.cantidad).toFixed(2));
+                        $('#moneda').val(donacion.moneda);
+                        $('#metodoPago').val(donacion.metodo_pago);
+
+                        donationModal.show();
+                    } else {
+                        Swal.fire('Error', response.message || translations[currentLanguage].errorFetchingDonation || 'No se pudo obtener la información de la donación.', 'error');
+                    }
+                } catch (error) {
+                    console.error("ERROR donaciones-admin.html: Fallo al obtener donación para edición:", error);
+                    Swal.fire('Error', translations[currentLanguage].communicationError || 'Error de comunicación al obtener datos para edición.', 'error');
+                }
+            });
+
+            // Eliminar Donación
+            $(document).off('click.donationsAdminDelete').on('click.donationsAdminDelete', '.delete-donation-btn', function() {
+                const id = $(this).data('id');
+                console.log(`DEBUG donaciones-admin.html: Clic en 'Eliminar Donación' para ID: ${id}`);
+
+                Swal.fire({
+                    title: translations[currentLanguage].confirmDeleteTitle || '¿Estás seguro?',
+                    text: translations[currentLanguage].confirmDeleteText || "¡No podrás revertir esto!",
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: translations[currentLanguage].yesDeleteIt || 'Sí, eliminarlo!',
+                    cancelButtonText: translations[currentLanguage].cancelButton || 'Cancelar'
+                }).then(async (result) => {
+                    if (result.isConfirmed) {
+                        try {
+                            const response = await window.ApiService.remove(`/donaciones/${id}`, true); // Usar .remove()
+                            
+                            if (response.status === 'success' || response.status === 'éxito') {
+                                Swal.fire(
+                                    translations[currentLanguage].deletedTitle || 'Eliminado!',
+                                    response.message || translations[currentLanguage].donationDeleted || 'La donación ha sido eliminada.',
+                                    'success'
+                                );
+                                loadDonations(); // Recargar la tabla
+                            } else {
+                                Swal.fire(
+                                    'Error',
+                                    response.message || translations[currentLanguage].errorDeletingDonation || 'Hubo un error al eliminar la donación.',
+                                    'error'
+                                );
+                            }
+                        } catch (error) {
+                            console.error("ERROR donaciones-admin.html: Fallo al eliminar donación:", error);
+                            Swal.fire('Error', translations[currentLanguage].communicationError || 'Error de comunicación al eliminar la donación.', 'error');
+                        }
+                    }
+                });
+            });
+
+            // Enviar Formulario (Crear/Editar)
+            $(document).off('submit.donationsAdminForm').on('submit.donationsAdminForm', '#donationForm', async function(e) {
+                e.preventDefault();
+                console.log("DEBUG donaciones-admin.html: Formulario de donación enviado.");
+
+                const id = $('#donationId').val();
+                const method = id ? 'PUT' : 'POST';
+                const url = id ? `/donaciones/${id}` : '/donaciones';
+
+                // Formatear la fecha y hora para enviar a la API
+                const dateTimeLocalValue = $('#fechaDonacion').val(); // Formato: YYYY-MM-DDTHH:MM
+                // Convertir a YYYY-MM-DD HH:MM:SS (asumiendo que la API espera segundos)
+                const formattedFechaDonacion = dateTimeLocalValue ? `${dateTimeLocalValue.replace('T', ' ')}:00` : null;
+
+                const formData = {
+                    id_usuario: parseInt($('#idUsuarioDonante').val()),
+                    id_refugio: $('#idRefugio').val() ? parseInt($('#idRefugio').val()) : null,
+                    cantidad: parseFloat($('#cantidad').val()),
+                    moneda: $('#moneda').val(),
+                    fecha_donacion: formattedFechaDonacion, // Usar el formato corregido
+                    metodo_pago: $('#metodoPago').val(),
+                };
+
+                // Validaciones básicas
+                if (!formData.id_usuario || !formData.fecha_donacion ||
+                    isNaN(formData.cantidad) || formData.cantidad <= 0 || !formData.moneda || !formData.metodo_pago) {
+                    Swal.fire('Advertencia', translations[currentLanguage].validationErrorText || 'Por favor, completa todos los campos obligatorios y asegúrate que la cantidad y moneda sean válidos.', 'warning');
+                    return;
+                }
+
+                try {
+                    let response;
+                    if (method === 'POST') {
+                        response = await window.ApiService.post(url, formData, true);
+                    } else if (method === 'PUT') {
+                        response = await window.ApiService.put(url, formData, true);
+                    } else {
+                        throw new Error('Método HTTP no soportado para guardar donación.');
+                    }
+                    
+                    if (response.status === 'success' || response.status === 'éxito') {
+                        Swal.fire(
+                            translations[currentLanguage].successTitle || 'Éxito!',
+                            response.message || translations[currentLanguage].donationSaved || 'Donación guardada exitosamente.',
+                            'success'
+                        );
+                        donationModal.hide();
+                        loadDonations(); // Recargar la tabla
+                    } else {
+                        Swal.fire(
+                            'Error',
+                            response.message || translations[currentLanguage].errorSavingDonation || 'Hubo un error al guardar la donación.',
+                            'error'
+                        );
+                    }
+                } catch (error) {
+                    console.error("ERROR donaciones-admin.html: Fallo al guardar donación:", error);
+                    Swal.fire('Error', translations[currentLanguage].communicationError || 'Error de comunicación al guardar la donación.', 'error');
+                }
+            });
+
+            // --- Carga inicial de datos ---
+            // Para asegurar que los selectores de donantes y refugios estén cargados
+            // antes de intentar cargar las donaciones (ya que loadDonations los usa para mostrar nombres)
+            loadFormSelectsData().then(() => {
+                loadDonations();
+            });
+
+            // Limpieza al descargar el componente
+            $(document).on('componentUnloaded.donationsAdminCleanup', function(event, unloadedComponentName) {
+                if (unloadedComponentName === 'donaciones-admin') {
+                    console.log("DEBUG donaciones-admin.html: ¡componentUnloaded para donaciones-admin detectado! Limpiando listeners.");
+                    $(document).off('.donationsAdminBack');
+                    $(document).off('.donationsAdminAdd');
+                    $(document).off('.donationsAdminEdit');
+                    $(document).off('.donationsAdminDelete');
+                    $(document).off('.donationsAdminForm');
+                    isDonationsAdminScriptInitialized = false;
+                    allUsuarios = [];
+                    allRefugios = [];
+                    console.log("DEBUG donaciones-admin.html: Event listeners de donaciones-admin limpiados.");
+                }
+            });
+        }
+
+        $(document).ready(function() {
+            initializeDonationsAdminScript();
+        });
+    })();
+</script>

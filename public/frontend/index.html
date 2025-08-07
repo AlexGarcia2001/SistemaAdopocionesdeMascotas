@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestión de Adopciones de Mascotas</title>
+    <!-- Logotipo y Favicon (asegúrate de colocar tus archivos en assets/img/) -->
+    <link rel="icon" href="./assets/img/favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="./assets/img/favicon.ico" type="image/x-icon">
+    
+    <!-- Bootstrap CSS (INTEGRITY CORREGIDA) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" xintegrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <!-- Font Awesome para iconos (opcional, pero útil) (INTEGRITY CORREGIDA) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" xintegrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- SweetAlert2 CSS (para alertas profesionales) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.12.2/dist/sweetalert2.min.css">
+    
+    <!-- NUEVOS: Estilos de Leaflet.js -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin=""/>
+
+    <!-- Estilos personalizados (tu archivo style.css) -->
+    <link rel="stylesheet" href="./css/style.css">
+    
+    <!-- Fuente Nunito (para un look moderno) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;700&display=swap" rel="stylesheet">
+
+</head>
+<body>
+    <!-- Encabezado de la página -->
+    <header class="bg-primary text-white py-3">
+        <div class="container d-flex justify-content-between align-items-center">
+            <!-- Logotipo del sistema -->
+            <div class="d-flex align-items-center">
+                <img src="./assets/img/logo.png" alt="Logo Adopciones" class="me-2" style="height: 40px;">
+                <h1 class="h4 mb-0" data-lang-key="appName">Sistema de Adopciones</h1>
+            </div>
+            
+            <!-- Selector de Idioma -->
+            <div class="language-selector">
+                <label for="languageSelect" class="visually-hidden" data-lang-key="selectLanguage">Seleccionar Idioma</label>
+                <select id="languageSelect" class="form-select form-select-sm">
+                    <option value="es">Español</option>
+                    <option value="en">English</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <!-- Contenido principal de la página -->
+    <main class="container my-4">
+        <!-- Contenedor para el contenido dinámico (login, registro, listas, etc.) -->
+        <div id="contentArea" class="card p-4 shadow-sm">
+            <!-- Este div se llenará dinámicamente con welcome.html, login.html, register.html, etc. -->
+        </div>
+    </main>
+
+    <!-- Pie de página -->
+    <footer class="bg-dark text-white text-center py-3 mt-4">
+        <div class="container">
+            <p class="mb-0" data-lang-key="footerText">&copy; 2025 Sistema de Adopciones de Mascotas. Todos los derechos reservados.</p>
+        </div>
+    </footer>
+
+    <!-- jQuery (requerido por Bootstrap y para AJAX) -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <!-- Bootstrap Bundle con Popper (INTEGRITY CORREGIDA) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" xintegrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+    <!-- SweetAlert2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.12.2/dist/sweetalert2.all.min.js"></script>
+    
+    <!-- NUEVO: Script de Leaflet.js (DEBE ESTAR AQUÍ con el hash de integridad CORREGIDO) -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""></script>
+
+    <!-- Scripts personalizados (¡ORDEN CRÍTICO!) -->
+    <script src="./js/lang.js?v=1.0.1"></script>        <!-- 1. Provee 'translations' y 'applyTranslations' -->
+    <script src="./js/validations.js?v=1.0.1"></script>   <!-- 2. Provee 'FormValidator' (depende de lang.js) -->
+    <script src="./js/api.js?v=1.0.1"></script>           <!-- 3. Provee 'ApiService' (depende de lang.js) -->
+    <script src="./js/auth.js?v=1.0.1"></script>          <!-- 4. Provee 'AuthService' (depende de api.js y lang.js) -->
+    <script src="./js/main.js?v=1.0.1"></script>          <!-- 5. Lógica principal (depende de AuthService, loadComponent) -->
+    <script src="./js/components.js?v=1.0.1"></script>    <!-- 6. Otros componentes que puedan depender de main.js -->
+
+    <!-- Modal para Solicitud de Adopción (SIMPLIFICADO Y GLOBAL) -->
+    <div class="modal fade" id="adoptionApplicationModal" tabindex="-1" aria-labelledby="adoptionApplicationModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="adoptionApplicationModalLabel" data-lang-key="adoptionApplicationTitle">Solicitud de Adopción</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="adoptionApplicationForm">
+                        <input type="hidden" id="applicationUserId">
+                        <input type="hidden" id="applicationPetId"> <!-- Aquí se guardará el ID de la mascota -->
+
+                        <div class="mb-3">
+                            <label for="applicationMotivation" class="form-label" data-lang-key="initialCommentsLabel">Comentarios Iniciales (motivo):</label>
+                            <textarea class="form-control" id="applicationMotivation" rows="5" required></textarea>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary" data-lang-key="submitApplication">Enviar Solicitud</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- FIN Modal para Solicitud de Adopción -->
+
+    <!-- Script de inicialización final (se ejecuta DESPUÉS de que todos los scripts personalizados estén cargados) -->
+    <script>
+        $(document).ready(function() {
+            console.log("DEBUG: Script de inicialización final en index.html ejecutado.");
+            // Esta llamada DEBE ejecutarse DESPUÉS de que window.AuthService esté definido.
+            if (window.AuthService && typeof window.AuthService.checkAuthAndRedirect === 'function') {
+                console.log("DEBUG: Llamando AuthService.checkAuthAndRedirect desde index.html (inicialización final).");
+                window.AuthService.checkAuthAndRedirect();
+            } else {
+                console.error("ERROR: AuthService no está definido o checkAuthAndRedirect no es una función en la inicialización final. Cargando 'welcome'.");
+                window.loadComponent('welcome');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,128 @@
+/* PROMPT: Generar estilos CSS para un sistema de adopciones de mascotas,
+           complementando Bootstrap y respetando una línea gráfica profesional
+           con colores naranja y blanco.
+           Incluir estilos para fuentes, colores principales, elementos generales,
+           cambiar el color del encabezado a naranja, mover el pie de página más abajo,
+           y usar una fuente de letras más bonita.
+           Corregir la ubicación de la regla @import.
+*/
+
+/* Importar la fuente Nunito desde Google Fonts */
+/* ¡ESTA LÍNEA DEBE ESTAR AL PRINCIPIO DEL ARCHIVO CSS! */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;700&display=swap');
+
+/* Variables CSS para colores de la línea gráfica (Naranja y Blanco) */
+:root {
+    --primary-color: #FF8C00; /* Naranja Oscuro (para elementos principales como el encabezado y botones primarios) */
+    --secondary-color: #FFA500; /* Naranja (un tono más claro para acentos si se necesita) */
+    --accent-color: #FFD700; /* Dorado (para pequeños detalles o resaltados) */
+    --dark-color: #343a40; /* Gris Oscuro (para texto o footer) */
+    --light-color: #f8f9fa; /* Gris Claro (para fondos suaves) */
+    --white-color: #ffffff; /* Blanco puro */
+    --text-color: #333; /* Color de texto general */
+    --font-family-base: 'Nunito', sans-serif; /* Fuente de letra más bonita */
+}
+
+
+body {
+    font-family: var(--font-family-base); /* Aplicar la fuente a todo el cuerpo */
+    background-color: var(--light-color); /* Fondo muy claro */
+    color: var(--text-color);
+    display: flex; /* Habilitar Flexbox para el layout */
+    flex-direction: column; /* Organizar elementos en columna */
+    min-height: 100vh; /* Asegura que el body ocupe al menos toda la altura de la ventana */
+}
+
+/* Contenido principal para que se expanda y empuje el footer */
+main {
+    flex-grow: 1; /* Permite que el contenido principal crezca y ocupe el espacio disponible */
+}
+
+/* Estilos de encabezado */
+header {
+    background-color: var(--primary-color) !important; /* Naranja Oscuro (¡Aquí se aplica el color!) */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+header h1 {
+    color: var(--white-color); /* Texto blanco en el encabezado naranja */
+    font-family: var(--font-family-base); /* Aplicar la fuente al título del encabezado */
+}
+
+/* Estilos de botones */
+.btn-primary {
+    background-color: var(--primary-color); /* Naranja Oscuro */
+    border-color: var(--primary-color);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+    color: var(--white-color); /* Texto blanco en botón primario */
+    font-family: var(--font-family-base); /* Aplicar la fuente a los botones */
+}
+
+.btn-primary:hover {
+    background-color: #e67e00; /* Un poco más oscuro al pasar el ratón */
+    border-color: #e67e00;
+}
+
+.btn-outline-secondary {
+    color: var(--primary-color); /* Texto naranja */
+    border-color: var(--primary-color); /* Borde naranja */
+    background-color: var(--white-color); /* Fondo blanco */
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+    font-family: var(--font-family-base); /* Aplicar la fuente a los botones */
+}
+
+.btn-outline-secondary:hover {
+    background-color: var(--primary-color); /* Fondo naranja al pasar el ratón */
+    color: var(--white-color); /* Texto blanco al pasar el ratón */
+}
+
+/* Estilos de tarjetas */
+.card {
+    border-radius: 0.75rem; /* Bordes redondeados */
+    border: none;
+    background-color: var(--white-color); /* Fondo blanco para las tarjetas */
+    font-family: var(--font-family-base); /* Aplicar la fuente a las tarjetas */
+}
+
+/* Sombra para elementos importantes */
+.shadow-sm {
+    box-shadow: 0 .125rem .25rem rgba(0,0,0,.075)!important;
+}
+
+/* Estilos para el selector de idioma */
+.language-selector select {
+    background-color: rgba(255, 255, 255, 0.2); /* Blanco semitransparente */
+    color: var(--white-color); /* Texto blanco */
+    border: 1px solid rgba(255, 255, 255, 0.4); /* Borde blanco semitransparente */
+    border-radius: 0.5rem;
+    padding: 0.375rem 0.75rem;
+    -webkit-appearance: none; /* Elimina estilos por defecto del navegador */
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23ffffff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 16px 12px;
+    font-family: var(--font-family-base); /* Aplicar la fuente al selector de idioma */
+}
+
+.language-selector select option {
+    color: var(--text-color); /* Color del texto de las opciones */
+    background-color: var(--white-color); /* Fondo de las opciones */
+    font-family: var(--font-family-base); /* Aplicar la fuente a las opciones del selector */
+}
+
+/* Estilos de pie de página */
+footer {
+    background-color: var(--dark-color) !important; /* Gris oscuro para el pie de página */
+    color: var(--white-color); /* Texto blanco */
+    text-align: center;
+    padding: 1rem 0;
+    margin-top: auto; /* ¡Esto empuja el footer hacia abajo! */
+    font-family: var(--font-family-base); /* Aplicar la fuente al pie de página */
+}
+
+/* Aplicar la fuente a todos los elementos de texto principales */
+h1, h2, h3, h4, h5, h6, p, label, a, input, select, textarea {
+    font-family: var(--font-family-base);
+}

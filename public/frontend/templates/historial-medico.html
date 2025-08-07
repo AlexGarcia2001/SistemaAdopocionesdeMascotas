@@ -1,0 +1,415 @@
+<!-- public/frontend/templates/historial-medico.html -->
+
+<div id="historialMedicoComponentContainer" class="row justify-content-center">
+    <div class="col-md-10 col-lg-10">
+        <h2 class="text-center mb-4" data-lang-key="manageMedicalHistoryTitle">Gestionar Historial Médico</h2>
+
+        <!-- Botón Atrás -->
+        <div class="mb-3">
+            <button id="backToDashboardBtn" class="btn btn-secondary" data-lang-key="backButton">Atrás</button>
+        </div>
+
+        <!-- Barra de búsqueda -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <input type="text" class="form-control" id="historialSearch" placeholder="Buscar historial médico..." data-lang-key="searchMedicalHistoryPlaceholder">
+            </div>
+        </div>
+
+        <!-- Contenedor para la tabla de historial médico -->
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th data-lang-key="recordId">ID Registro</th>
+                        <th data-lang-key="petName">Mascota</th>
+                        <th data-lang-key="visitDate">Fecha Visita</th>
+                        <th data-lang-key="visitType">Tipo Visita</th>
+                        <th data-lang-key="diagnosis">Diagnóstico</th>
+                        <th data-lang-key="actions">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="historialTableBody">
+                    <!-- Las filas de historial médico se cargarán aquí dinámicamente -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Botón para Añadir Historial Médico -->
+        <div class="d-grid gap-2 mt-4">
+            <button id="addHistorialBtn" class="btn btn-success btn-lg" data-lang-key="addMedicalRecord">Añadir Registro Médico</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Añadir/Editar Historial Médico -->
+<div class="modal fade" id="historialModal" tabindex="-1" aria-labelledby="historialModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="historialModalLabel" data-lang-key="addMedicalRecord">Añadir Registro Médico</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="historialForm">
+                    <input type="hidden" id="historialId">
+                    <div class="mb-3">
+                        <label for="historialMascotaId" class="form-label" data-lang-key="petIdLabel">ID Mascota:</label>
+                        <input type="number" class="form-control" id="historialMascotaId" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="historialFechaVisita" class="form-label" data-lang-key="visitDateLabel">Fecha de Visita:</label>
+                        <input type="date" class="form-control" id="historialFechaVisita" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="historialTipoVisita" class="form-label" data-lang-key="visitTypeLabel">Tipo de Visita:</label>
+                        <input type="text" class="form-control" id="historialTipoVisita">
+                    </div>
+                    <div class="mb-3">
+                        <label for="historialDiagnostico" class="form-label" data-lang-key="diagnosisLabel">Diagnóstico:</label>
+                        <textarea class="form-control" id="historialDiagnostico" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="historialTratamiento" class="form-label" data-lang-key="treatmentLabel">Tratamiento:</label>
+                        <textarea class="form-control" id="historialTratamiento" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="historialVacunas" class="form-label" data-lang-key="vaccinesLabel">Vacunas Aplicadas:</label>
+                        <input type="text" class="form-control" id="historialVacunas" placeholder="Separar por comas (ej: Rabia, Moquillo)">
+                    </div>
+                    <div class="mb-3">
+                        <label for="historialProximaCita" class="form-label" data-lang-key="nextAppointmentLabel">Próxima Cita (Opcional):</label>
+                        <input type="date" class="form-control" id="historialProximaCita">
+                    </div>
+                    <div class="mb-3">
+                        <label for="historialObservaciones" class="form-label" data-lang-key="observationsLabel">Observaciones Adicionales:</label>
+                        <textarea class="form-control" id="historialObservaciones" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="historialIdVeterinario" class="form-label" data-lang-key="veterinarianIdLabel">ID Veterinario:</label>
+                        <input type="number" class="form-control" id="historialIdVeterinario" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary" data-lang-key="saveRecord">Guardar Registro</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Script para historial-medico.html
+    (function() {
+        console.log("DEBUG historial-medico.html: Iniciando carga del script.");
+        applyTranslations(); // Aplicar traducciones a los elementos estáticos iniciales
+
+        const historialTableBody = $('#historialTableBody');
+        let allHistorialData = []; // Variable para almacenar todos los historiales cargados
+
+        async function loadHistorial() {
+            historialTableBody.html('<tr><td colspan="6" class="text-center py-3"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div><p class="mt-2">Cargando historial médico...</p></td></tr>');
+
+            try {
+                console.log("DEBUG historial-medico.html: Llamando window.ApiService.get('/historialmedico', true) para cargar historial.");
+                const response = await window.ApiService.get('/historialmedico', true); 
+                console.log("DEBUG historial-medico.html: Respuesta de la API al cargar historial:", JSON.stringify(response.data, null, 2));
+
+                if (response.status === 'success' || response.status === 'éxito') {
+                    if (response.data && response.data.length > 0) {
+                        allHistorialData = response.data; 
+                        applyFiltersAndRenderHistorial();
+                        console.log("DEBUG historial-medico.html: Historial cargado y renderizado exitosamente.");
+                    } else {
+                        historialTableBody.html(`<tr><td colspan="6" class="text-center py-3"><p data-lang-key="noRecordsFound">${translations[currentLanguage].noRecordsFound}</p></td></tr>`);
+                        applyTranslations();
+                        console.log("DEBUG historial-medico.html: La API devolvió éxito pero sin datos.");
+                    }
+                } else if (response.status === 'info') {
+                    historialTableBody.html(`<tr><td colspan="6" class="text-center py-3"><p data-lang-key="noRecordsFound">${translations[currentLanguage].noRecordsFound}</p></td></tr>`);
+                    applyTranslations();
+                    console.log("DEBUG historial-medico.html: La API informó que no se encontraron registros.");
+                } 
+                else {
+                    console.error("ERROR historial-medico.html: La API devolvió un error al cargar historial:", response.message || response);
+                    historialTableBody.html(`<tr><td colspan="6" class="text-center py-3"><p class="text-danger" data-lang-key="generalError">${translations[currentLanguage].generalError}: ${response.message || 'Error desconocido de la API.'}</p></td></tr>`);
+                    applyTranslations();
+                    Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: response.message || 'Error al cargar el historial médico.' });
+                }
+            } catch (error) {
+                console.error("ERROR historial-medico.html: Fallo al cargar historial (captura general):", error);
+                let errorMessage = 'Error de comunicación con el servidor al cargar historial médico.';
+                if (error.responseJSON && error.responseJSON.message) { errorMessage = error.responseJSON.message; } 
+                else if (error.statusText) { errorMessage = `Error de red: ${error.statusText} (Código: ${error.status || 'N/A'})`; } 
+                else if (error.message) { errorMessage = `Error JavaScript: ${error.message}`; }
+                historialTableBody.html(`<tr><td colspan="6" class="text-center py-3"><p class="text-danger" data-lang-key="generalError">${translations[currentLanguage].generalError}: ${errorMessage}</p></td></tr>`);
+                applyTranslations();
+                Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: errorMessage });
+            }
+        }
+
+        function applyFiltersAndRenderHistorial() {
+            let filteredHistorial = [...allHistorialData];
+            const searchTerm = $('#historialSearch').val().toLowerCase().trim();
+
+            if (searchTerm) {
+                filteredHistorial = filteredHistorial.filter(record =>
+                    (record.id_historial && String(record.id_historial).includes(searchTerm)) ||
+                    (record.nombre_mascota && record.nombre_mascota.toLowerCase().includes(searchTerm)) || // ¡Cambiado a nombre_mascota!
+                    (record.tipo_visita && record.tipo_visita.toLowerCase().includes(searchTerm)) ||
+                    (record.diagnostico && record.diagnostico.toLowerCase().includes(searchTerm)) ||
+                    (record.tratamiento && record.tratamiento.toLowerCase().includes(searchTerm)) ||
+                    (record.vacunas_aplicadas && record.vacunas_aplicadas.toLowerCase().includes(searchTerm)) ||
+                    (record.observaciones && record.observaciones.toLowerCase().includes(searchTerm)) ||
+                    (record.fecha_visita && record.fecha_visita.toLowerCase().includes(searchTerm))
+                );
+            }
+            renderHistorialTable(filteredHistorial);
+        }
+
+        function renderHistorialTable(historialArray) {
+            historialTableBody.empty();
+            if (historialArray.length === 0) {
+                historialTableBody.html(`<tr><td colspan="6" class="text-center py-3"><p data-lang-key="noRecordsFound">${translations[currentLanguage].noRecordsFound}</p></td></tr>`);
+                applyTranslations();
+                return;
+            }
+
+            historialArray.forEach(record => {
+                const formattedVisitDate = record.fecha_visita ? new Date(record.fecha_visita).toLocaleDateString('es-ES') : 'N/A';
+
+                const row = `
+                    <tr>
+                        <td>${record.id_historial || 'N/A'}</td>
+                        <td>${record.nombre_mascota || 'N/A'}</td> <!-- ¡Cambiado a nombre_mascota! -->
+                        <td>${formattedVisitDate}</td>
+                        <td>${record.tipo_visita || 'N/A'}</td>
+                        <td>${record.diagnostico ? (record.diagnostico.length > 50 ? record.diagnostico.substring(0, 50) + '...' : record.diagnostico) : 'N/A'}</td>
+                        <td>
+                            <button class="btn btn-info btn-sm view-historial-btn" data-historial-id="${record.id_historial}" data-lang-key="viewDetails">Ver Detalles</button>
+                            <button class="btn btn-warning btn-sm edit-historial-btn ms-1" data-historial-id="${record.id_historial}" data-lang-key="editButton">Editar</button>
+                            <button class="btn btn-danger btn-sm delete-historial-btn ms-1" data-historial-id="${record.id_historial}" data-lang-key="deleteButton">Eliminar</button>
+                        </td>
+                    </tr>
+                `;
+                historialTableBody.append(row);
+            });
+            applyTranslations();
+        }
+
+        // Cargar historial al cargar el componente
+        loadHistorial();
+
+        // --- Event Listeners ---
+        const historialComponentContainer = $('#historialMedicoComponentContainer');
+
+        // Manejar clic en el botón "Añadir Registro Médico"
+        historialComponentContainer.off('click', '#addHistorialBtn').on('click', '#addHistorialBtn', function() {
+            $('#historialForm')[0].reset(); // Limpiar el formulario
+            $('#historialId').val(''); // Asegurarse de que el ID esté vacío para añadir
+            $('#historialModalLabel').attr('data-lang-key', 'addMedicalRecord').text(translations[currentLanguage].addMedicalRecord); // Cambiar título del modal
+            $('#historialForm input, #historialForm textarea').prop('disabled', false); // Habilitar campos
+            $('#historialForm button[type="submit"]').show(); // Mostrar botón de guardar
+            $('#historialModal').modal('show');
+            applyTranslations();
+        });
+
+        // Manejar clic en el botón "Editar"
+        historialComponentContainer.off('click', '.edit-historial-btn').on('click', '.edit-historial-btn', async function() {
+            const historialId = $(this).data('historial-id');
+            console.log(`DEBUG historial-medico.html: Clic en 'Editar' para Historial ID: ${historialId}`);
+
+            try {
+                const response = await window.ApiService.get(`/historialmedico/${historialId}`, true);
+                if ((response.status === 'success' || response.status === 'éxito') && response.data) {
+                    const record = response.data;
+                    $('#historialId').val(record.id_historial);
+                    $('#historialMascotaId').val(record.id_mascota);
+                    $('#historialFechaVisita').val(record.fecha_visita ? record.fecha_visita.split(' ')[0] : '');
+                    $('#historialTipoVisita').val(record.tipo_visita);
+                    $('#historialDiagnostico').val(record.diagnostico);
+                    $('#historialTratamiento').val(record.tratamiento);
+                    $('#historialVacunas').val(record.vacunas_aplicadas);
+                    $('#historialProximaCita').val(record.proxima_cita ? record.proxima_cita.split(' ')[0] : '');
+                    $('#historialObservaciones').val(record.observaciones);
+                    $('#historialIdVeterinario').val(record.id_veterinario); // Cargar ID Veterinario
+
+                    $('#historialForm input, #historialForm textarea').prop('disabled', false); // Habilitar campos
+                    $('#historialForm button[type="submit"]').show(); // Mostrar botón de guardar
+                    $('#historialModalLabel').attr('data-lang-key', 'editMedicalRecord').text(translations[currentLanguage].editMedicalRecord);
+                    $('#historialModal').modal('show');
+                    applyTranslations();
+                } else {
+                    Swal.fire({ icon: 'warning', title: translations[currentLanguage].generalError, text: response.message || 'No se pudieron cargar los detalles del historial.' });
+                }
+            } catch (error) {
+                console.error("ERROR historial-medico.html: Fallo al cargar detalles del historial:", error);
+                Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: 'Error al cargar los detalles del historial.' });
+            }
+        });
+
+        // Manejar envío del formulario de Añadir/Editar Historial Médico
+        $('#historialForm').on('submit', async function(e) { 
+            console.log("DEBUG historial-medico.html: ¡Manejador de SUBMIT del formulario activado!"); 
+            e.preventDefault(); // Evita el envío tradicional del formulario
+            console.log("DEBUG historial-medico.html: Enviando formulario de historial médico.");
+
+            const historialId = $('#historialId').val();
+            const historialData = {
+                id_mascota: parseInt($('#historialMascotaId').val()),
+                fecha_visita: $('#historialFechaVisita').val(),
+                tipo_visita: $('#historialTipoVisita').val() || null,
+                diagnostico: $('#historialDiagnostico').val() || null,
+                tratamiento: $('#historialTratamiento').val() || null,
+                vacunas_aplicadas: $('#historialVacunas').val() || null,
+                proxima_cita: $('#historialProximaCita').val() || null,
+                observaciones: $('#historialObservaciones').val() || null, 
+                id_veterinario: parseInt($('#historialIdVeterinario').val()) 
+            };
+
+            // Validaciones frontend adicionales
+            if (isNaN(historialData.id_mascota) || historialData.id_mascota <= 0) {
+                Swal.fire({ icon: 'error', title: translations[currentLanguage].formCorrectionError, text: 'Por favor, introduce un ID de Mascota válido y mayor que 0.' });
+                return;
+            }
+            if (isNaN(historialData.id_veterinario) || historialData.id_veterinario <= 0) {
+                Swal.fire({ icon: 'error', title: translations[currentLanguage].formCorrectionError, text: 'Por favor, introduce un ID de Veterinario válido y mayor que 0.' });
+                return;
+            }
+            if (!historialData.fecha_visita) {
+                Swal.fire({ icon: 'error', title: translations[currentLanguage].formCorrectionError, text: 'Por favor, introduce la fecha de visita.' });
+                return;
+            }
+            if (!historialData.diagnostico) {
+                Swal.fire({ icon: 'error', title: translations[currentLanguage].formCorrectionError, text: 'Por favor, introduce el diagnóstico.' });
+                return;
+            }
+
+            console.log("DEBUG historial-medico.html: ID del historial para guardar/editar:", historialId);
+            console.log("DEBUG historial-medico.html: Datos a enviar para guardar/editar:", historialData);
+            
+            try {
+                let response;
+                if (historialId) { // Editar
+                    console.log(`DEBUG historial-medico.html: Llamando window.ApiService.put('/historialmedico/${historialId}', historialData, true)`);
+                    response = await window.ApiService.put(`/historialmedico/${historialId}`, historialData, true);
+                } else { // Añadir
+                    console.log("DEBUG historial-medico.html: Llamando window.ApiService.post('/historialmedico', historialData, true)");
+                    response = await window.ApiService.post('/historialmedico', historialData, true);
+                }
+
+                console.log("DEBUG historial-medico.html: Respuesta completa de la API al guardar/editar historial:", response);
+
+                if (response.status === 'success' || response.status === 'éxito') {
+                    Swal.fire({ icon: 'success', title: translations[currentLanguage].createSuccess, text: response.message || 'Registro médico guardado exitosamente.' });
+                    $('#historialModal').modal('hide');
+                    loadHistorial(); // Recargar la lista
+                } else {
+                    Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: response.message || 'Error al guardar el registro médico.' });
+                }
+            } catch (error) {
+                console.error("ERROR historial-medico.html: Fallo al guardar historial (captura general):", error);
+                let errorMessage = 'Error de comunicación con el servidor al guardar el registro médico.';
+                if (error.responseJSON && error.responseJSON.message) { errorMessage = error.responseJSON.message; } 
+                else if (error.statusText) { errorMessage = `Error de red: ${error.statusText} (Código: ${error.status || 'N/A'})`; } 
+                else if (error.message) { errorMessage = `Error JavaScript: ${error.message}`; }
+                Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: errorMessage });
+            }
+        });
+
+        // Manejar clic en el botón "Ver Detalles"
+        historialComponentContainer.off('click', '.view-historial-btn').on('click', '.view-historial-btn', async function() {
+            const historialId = $(this).data('historial-id');
+            console.log(`DEBUG historial-medico.html: Clic en 'Ver Detalles' para Historial ID: ${historialId}`);
+
+            try {
+                const response = await window.ApiService.get(`/historialmedico/${historialId}`, true);
+                if ((response.status === 'success' || response.status === 'éxito') && response.data) {
+                    const record = response.data;
+                    
+                    // Deshabilitar todos los campos del formulario
+                    $('#historialForm input, #historialForm textarea').prop('disabled', true);
+                    $('#historialForm button[type="submit"]').hide(); // Ocultar el botón de guardar
+
+                    $('#historialId').val(record.id_historial);
+                    $('#historialMascotaId').val(record.id_mascota);
+                    $('#historialFechaVisita').val(record.fecha_visita ? record.fecha_visita.split(' ')[0] : '');
+                    $('#historialTipoVisita').val(record.tipo_visita);
+                    $('#historialDiagnostico').val(record.diagnostico);
+                    $('#historialTratamiento').val(record.tratamiento);
+                    $('#historialVacunas').val(record.vacunas_aplicadas);
+                    $('#historialProximaCita').val(record.proxima_cita ? record.proxima_cita.split(' ')[0] : '');
+                    $('#historialObservaciones').val(record.observaciones);
+                    $('#historialIdVeterinario').val(record.id_veterinario); // Cargar ID Veterinario
+
+                    $('#historialModalLabel').attr('data-lang-key', 'medicalRecordDetails').text(translations[currentLanguage].medicalRecordDetails);
+                    $('#historialModal').modal('show');
+                    applyTranslations();
+
+                    // Cuando el modal se cierra, re-habilitar los campos y mostrar el botón de guardar
+                    $('#historialModal').on('hidden.bs.modal', function () {
+                        $('#historialForm input, #historialForm textarea').prop('disabled', false);
+                        $('#historialForm button[type="submit"]').show();
+                        $('#historialModal').off('hidden.bs.modal'); 
+                    });
+
+                } else {
+                    Swal.fire({ icon: 'warning', title: translations[currentLanguage].generalError, text: response.message || 'No se pudieron cargar los detalles del historial.' });
+                }
+            } catch (error) {
+                console.error("ERROR historial-medico.html: Fallo al cargar detalles del historial para ver:", error);
+                Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: 'Error al cargar los detalles del historial.' });
+            }
+        });
+
+        // Manejar clic en el botón "Eliminar Registro Médico"
+        historialComponentContainer.off('click', '.delete-historial-btn').on('click', '.delete-historial-btn', function() {
+            const historialId = $(this).data('historial-id');
+            console.log(`DEBUG historial-medico.html: Clic en 'Eliminar' para Historial ID: ${historialId}`);
+
+            Swal.fire({
+                title: translations[currentLanguage].confirmDeleteTitle, text: translations[currentLanguage].confirmDeleteText,
+                icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#3085d6',
+                confirmButtonText: translations[currentLanguage].yesDeleteIt, cancelButtonText: translations[currentLanguage].cancelButton
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    try {
+                        console.log(`DEBUG historial-medico.html: Llamando window.ApiService.remove('/historialmedico/${historialId}', true)`);
+                        const response = await window.ApiService.remove(`/historialmedico/${historialId}`, true);
+
+                        if (response.status === 'success' || response.status === 'éxito') {
+                            Swal.fire({ icon: 'success', title: translations[currentLanguage].deleteSuccess, text: response.message || 'Registro médico eliminado exitosamente.' });
+                            loadHistorial();
+                        } else {
+                            Swal.fire({ icon: 'error', title: translations[currentLanguage].deleteError, text: response.message || 'Error al eliminar el registro médico.' });
+                        }
+                    } catch (error) {
+                        console.error("ERROR historial-medico.html: Fallo al eliminar registro médico desde la API:", error);
+                        let errorMessage = 'Error de comunicación con el servidor al eliminar registro médico.';
+                        if (error.responseJSON && error.responseJSON.message) { errorMessage = error.responseJSON.message; } 
+                        else if (error.statusText) { errorMessage = `Error de red: ${error.statusText} (Código: ${error.status || 'N/A'})`; } 
+                        else if (error.message) { errorMessage = `Error JavaScript: ${error.message}`; }
+                        Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: errorMessage });
+                    }
+                }
+            });
+        });
+
+        // Lógica para el filtro de búsqueda
+        historialComponentContainer.off('change keyup', '#historialSearch').on('change keyup', '#historialSearch', function() {
+            applyFiltersAndRenderHistorial();
+        });
+
+        // Lógica para el botón "Atrás"
+        $(document).off('click', '#backToDashboardBtn').on('click', '#backToDashboardBtn', function() {
+            window.loadComponent('dashboard-admin');
+        });
+
+        // Limpieza de eventos al salir del componente (delegación al contenedor)
+        $(document).on('componentUnloaded', function(event, unloadedComponentName) {
+            if (unloadedComponentName === 'historial-medico') {
+                historialComponentContainer.off(); // Desvincula todos los eventos del contenedor
+                console.log("DEBUG historial-medico.html: Eventos del componente desvinculados.");
+            }
+        });
+
+    })();
+</script>
