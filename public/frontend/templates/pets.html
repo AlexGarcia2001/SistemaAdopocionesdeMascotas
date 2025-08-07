@@ -1,0 +1,628 @@
+<!-- public/frontend/templates/pets.html -->
+
+<div class="row justify-content-center">
+    <div class="col-md-10 col-lg-10">
+        <h2 class="text-center mb-4" data-lang-key="petsAvailableForAdoption">Mascotas Disponibles para Adopción</h2>
+
+        <!-- Botón Atrás -->
+        <div class="mb-3">
+            <button id="backToDashboardBtn" class="btn btn-secondary" data-lang-key="backButton">Atrás</button>
+        </div>
+
+        <!-- Barra de búsqueda (solo esta) -->
+        <div class="row mb-4">
+            <div class="col-md-12 mb-3"> <!-- Ocupa todo el ancho -->
+                <input type="text" class="form-control" id="petSearch" placeholder="Buscar..." data-lang-key="searchPlaceholder">
+            </div>
+            <!-- Los selectores de Especie y Tamaño han sido eliminados del HTML -->
+        </div>
+
+        <!-- Contenedor para las tarjetas de mascotas -->
+        <div id="petsContainer" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+            <!-- Las tarjetas de mascotas se cargarán aquí dinámicamente -->
+        </div>
+
+        <div class="d-grid gap-2 mt-4">
+            <button id="addPetBtn" class="btn btn-success btn-lg" data-lang-key="addPet">Añadir Mascota</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Añadir Mascota -->
+<div class="modal fade" id="addPetModal" tabindex="-1" aria-labelledby="addPetModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addPetModalLabel" data-lang-key="addPet">Añadir Mascota</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addPetForm">
+                    <div class="mb-3">
+                        <label for="petName" class="form-label">Nombre:</label>
+                        <input type="text" class="form-control" id="petName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="petSpecies" class="form-label">Especie:</label>
+                        <input type="text" class="form-control" id="petSpecies" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="petBreed" class="form-label">Raza:</label>
+                        <input type="text" class="form-control" id="petBreed">
+                    </div>
+                    <div class="mb-3">
+                        <label for="petAge" class="form-label">Edad (años):</label>
+                        <input type="number" class="form-control" id="petAge">
+                    </div>
+                    <div class="mb-3">
+                        <label for="petSex" class="form-label">Sexo:</label>
+                        <select class="form-select" id="petSex" required>
+                            <option value="">Seleccionar</option>
+                            <option value="Macho">Macho</option>
+                            <option value="Hembra">Hembra</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="petSize" class="form-label">Tamaño:</label>
+                        <select class="form-select" id="petSize">
+                            <option value="">Seleccionar</option>
+                            <option value="Pequeño">Pequeño</option>
+                            <option value="Mediano">Mediano</option>
+                            <option value="Grande">Grande</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="petDescription" class="form-label">Descripción:</label>
+                        <textarea class="form-control" id="petDescription" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="petRescueDate" class="form-label">Fecha de Rescate:</label>
+                        <input type="date" class="form-control" id="petRescueDate">
+                    </div>
+                    <div class="mb-3">
+                        <label for="petAdoptionStatus" class="form-label">Estado de Adopción:</label>
+                        <select class="form-select" id="petAdoptionStatus" required>
+                            <option value="Disponible">Disponible</option>
+                            <option value="Adoptado">Adoptado</option>
+                            <option value="En Proceso">En Proceso</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="petStatus" class="form-label">Estado (Registro):</label>
+                        <select class="form-select" id="petStatus" required>
+                            <option value="activo">Activo</option>
+                            <option value="inactivo">Inactivo</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="petUserId" class="form-label">ID de Usuario (Registrador):</label>
+                        <input type="number" class="form-control" id="petUserId" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="petRefugeId" class="form-label">ID de Refugio:</label>
+                        <input type="number" class="form-control" id="petRefugeId" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="petPhotoUrl" class="form-label">URL de la Foto (para galería):</label>
+                        <input type="url" class="form-control" id="petPhotoUrl" placeholder="https://ejemplo.com/imagen.jpg">
+                    </div>
+                    <button type="submit" class="btn btn-primary" data-lang-key="save">Guardar Mascota</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Nuevo Modal para Ver Detalles de la Mascota -->
+<div class="modal fade" id="viewPetDetailsModal" tabindex="-1" aria-labelledby="viewPetDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewPetDetailsModalLabel" data-lang-key="petDetailsTitle">Detalles de la Mascota</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6 text-center">
+                        <img id="detailPetPhoto" src="https://placehold.co/400x300/e0e0e0/000000?text=Imagen+No+Disponible" class="img-fluid rounded shadow-sm mb-3" alt="Foto de Mascota">
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong><span data-lang-key="petNameLabel">Nombre:</span></strong> <span id="detailPetName"></span></p>
+                        <p><strong><span data-lang-key="speciesLabel">Especie:</span></strong> <span id="detailPetSpecies"></span></p>
+                        <p><strong><span data-lang-key="breedLabel">Raza:</span></strong> <span id="detailPetBreed"></span></p>
+                        <p><strong><span data-lang-key="ageLabel">Edad:</span></strong> <span id="detailPetAge"></span> <span data-lang-key="yearsLabel">años</span></p>
+                        <p><strong><span data-lang-key="sexLabel">Sexo:</span></strong> <span id="detailPetSex"></span></p>
+                        <p><strong><span data-lang-key="sizeLabel">Tamaño:</span></strong> <span id="detailPetSize"></span></p>
+                        <p><strong><span data-lang-key="descriptionLabel">Descripción:</span></strong> <span id="detailPetDescription"></span></p>
+                        <p><strong><span data-lang-key="rescueDateLabel">Fecha de Rescate:</span></strong> <span id="detailPetRescueDate"></span></p>
+                        <p><strong><span data-lang-key="adoptionStatusLabel">Estado de Adopción:</span></strong> <span id="detailPetAdoptionStatus"></span></p>
+                        <p><strong><span data-lang-key="statusLabel">Estado (Registro):</span></strong> <span id="detailPetStatus"></span></p>
+                        <p><strong><span data-lang-key="registeredByLabel">Registrado por (ID Usuario):</span></strong> <span id="detailPetUserId"></span></p>
+                        <p><strong><span data-lang-key="shelterIdLabel">ID Refugio:</span></strong> <span id="detailPetRefugeId"></span></p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" data-lang-key="closeButton">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- NUEVO MODAL PARA EDITAR MASCOTA -->
+<div class="modal fade" id="editPetModal" tabindex="-1" aria-labelledby="editPetModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editPetModalLabel" data-lang-key="editPet">Editar Mascota</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editPetForm">
+                    <!-- Campo oculto para el ID de la mascota que se está editando -->
+                    <input type="hidden" id="editPetId">
+                    <div class="mb-3">
+                        <label for="editPetName" class="form-label">Nombre:</label>
+                        <input type="text" class="form-control" id="editPetName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPetSpecies" class="form-label">Especie:</label>
+                        <input type="text" class="form-control" id="editPetSpecies" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPetBreed" class="form-label">Raza:</label>
+                        <input type="text" class="form-control" id="editPetBreed">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPetAge" class="form-label">Edad (años):</label>
+                        <input type="number" class="form-control" id="editPetAge">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPetSex" class="form-label">Sexo:</label>
+                        <select class="form-select" id="editPetSex" required>
+                            <option value="">Seleccionar</option>
+                            <option value="Macho">Macho</option>
+                            <option value="Hembra">Hembra</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPetSize" class="form-label">Tamaño:</label>
+                        <select class="form-select" id="editPetSize">
+                            <option value="">Seleccionar</option>
+                            <option value="Pequeño">Pequeño</option>
+                            <option value="Mediano">Mediano</option>
+                            <option value="Grande">Grande</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPetDescription" class="form-label">Descripción:</label>
+                        <textarea class="form-control" id="editPetDescription" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPetRescueDate" class="form-label">Fecha de Rescate:</label>
+                        <input type="date" class="form-control" id="editPetRescueDate">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPetAdoptionStatus" class="form-label">Estado de Adopción:</label>
+                        <select class="form-select" id="editPetAdoptionStatus" required>
+                            <option value="Disponible">Disponible</option>
+                            <option value="Adoptado">Adoptado</option>
+                            <option value="En Proceso">En Proceso</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPetStatus" class="form-label">Estado (Registro):</label>
+                        <select class="form-select" id="editPetStatus" required>
+                            <option value="activo">Activo</option>
+                            <option value="inactivo">Inactivo</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPetUserId" class="form-label">ID de Usuario (Registrador):</label>
+                        <input type="number" class="form-control" id="editPetUserId" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPetRefugeId" class="form-label">ID de Refugio:</label>
+                        <input type="number" class="form-control" id="editPetRefugeId" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPetPhotoUrl" class="form-label">URL de la Foto (para galería):</label>
+                        <input type="url" class="form-control" id="editPetPhotoUrl" placeholder="https://ejemplo.com/imagen.jpg">
+                    </div>
+                    <button type="submit" class="btn btn-primary" data-lang-key="saveChanges">Guardar Cambios</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Script para pets.html para cargar mascotas dinámicamente.
+    (function() {
+        console.log("DEBUG pets.html: Iniciando carga del script.");
+        applyTranslations(); // Aplicar traducciones a los elementos estáticos iniciales
+
+        const petsContainer = $('#petsContainer');
+        let allPetsData = []; // Variable para almacenar todas las mascotas cargadas
+
+        // --- DATOS MOCK (SIMULACIÓN DE DATOS DE LA BASE DE DATOS) ---
+        const mockPetsData = [
+            { id_mascota: 1, nombre: "Buddy", especie: "Perro", raza: "Golden Retriever", edad: 3, sexo: "Macho", tamano: "Grande", descripcion: "Un perro muy amigable y juguetón, ideal para familias.", fecha_rescate: "2024-01-15", estado_adopcion: "Disponible", estado: "activo", id_usuario: 101, id_refugio: 1, foto_url: "https://placehold.co/400x300/a8dadc/000000?text=Buddy+Golden" },
+            { id_mascota: 2, nombre: "Luna", especie: "Gato", raza: "Siames", edad: 1, sexo: "Hembra", tamano: "Pequeño", descripcion: "Gatita curiosa y cariñosa, le encanta jugar con láser.", fecha_rescate: "2024-02-20", estado_adopcion: "Disponible", estado: "activo", id_usuario: 102, id_refugio: 2, foto_url: "https://placehold.co/400x300/fec89a/000000?text=Luna+Siames" },
+            { id_mascota: 3, nombre: "Max", especie: "Perro", raza: "Labrador", edad: 5, sexo: "Macho", tamano: "Mediano", descripcion: "Tranquilo y leal, perfecto para un hogar con jardín.", fecha_rescate: "2023-11-01", estado_adopcion: "En Proceso", estado: "activo", id_usuario: 101, id_refugio: 1, foto_url: "https://placehold.co/400x300/84a98c/000000?text=Max+Labrador" },
+            { id_mascota: 4, nombre: "Bella", especie: "Gato", raza: "Persa", edad: 2, sexo: "Hembra", tamano: "Pequeño", descripcion: "Muy elegante y le gusta la tranquilidad.", fecha_rescate: "2024-03-10", estado_adopcion: "Disponible", estado: "activo", id_usuario: 103, id_refugio: 2, foto_url: "https://placehold.co/400x300/c9ada7/000000?text=Bella+Persa" }
+        ];
+        // --- FIN DATOS MOCK ---
+
+        function normalizeString(str) {
+            if (typeof str !== 'string' || str === null) { return ''; }
+            str = str.trim();
+            if (str.length === 0) { return ''; }
+            return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+        }
+
+        async function loadPets() {
+            console.log("DEBUG pets.html: Intentando cargar mascotas desde la API.");
+            petsContainer.html('<div class="col-12 text-center py-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Cargando...</span></div><p class="mt-2">Cargando mascotas...</p></div>');
+
+            try {
+                console.log("DEBUG pets.html: Llamando window.ApiService.get('/mascotas', false)");
+                const response = await window.ApiService.get('/mascotas', false);
+                console.log("DEBUG pets.html: Respuesta de la API al cargar mascotas:", response);
+
+                if (response.status === 'success' || response.status === 'éxito') {
+                    if (response.data && response.data.length > 0) {
+                        allPetsData = response.data.map(pet => {
+                            return { ...pet, especie: normalizeString(pet.especie), tamano: normalizeString(pet.tamano) };
+                        });
+                        applyFiltersAndRender();
+                        console.log("DEBUG pets.html: Mascotas de la API cargadas y normalizadas, luego renderizadas exitosamente.");
+                    } else {
+                        petsContainer.html(`
+                            <div class="col-12 text-center py-5">
+                                <p data-lang-key="noRecordsFound">${translations[currentLanguage].noRecordsFound}</p>
+                            </div>
+                        `);
+                        applyTranslations();
+                        console.log("DEBUG pets.html: La API no devolvió mascotas.");
+                    }
+                } else {
+                    console.error("ERROR pets.html: La API devolvió un error al cargar mascotas:", response.message || response);
+                    petsContainer.html(`
+                        <div class="col-12 text-center py-5">
+                            <p class="text-danger" data-lang-key="generalError">${translations[currentLanguage].generalError}: ${response.message || 'Error desconocido de la API.'}</p>
+                        </div>
+                    `);
+                    applyTranslations();
+                    Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: response.message || 'Error al cargar las mascotas.' });
+                }
+            } catch (error) {
+                console.error("ERROR pets.html: Fallo al cargar mascotas desde la API (captura general):", error);
+                let errorMessage = 'Error de comunicación con el servidor al cargar mascotas.';
+                if (error.responseJSON && error.responseJSON.message) { errorMessage = error.responseJSON.message; } 
+                else if (error.statusText) { errorMessage = `Error de red: ${error.statusText} (Código: ${error.status || 'N/A'})`; } 
+                else if (error.message) { errorMessage = `Error JavaScript: ${error.message}`; }
+                petsContainer.html(`
+                    <div class="col-12 text-center py-5">
+                        <p class="text-danger" data-lang-key="generalError">${translations[currentLanguage].generalError}: ${errorMessage}</p>
+                    </div>
+                `);
+                applyTranslations();
+                Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: errorMessage });
+            }
+        }
+
+        function applyFiltersAndRender() {
+            let filteredPets = [...allPetsData];
+            const searchTerm = $('#petSearch').val().toLowerCase().trim();
+            console.log(`DEBUG pets.html: Aplicando filtros - Búsqueda: "${searchTerm}"`);
+            if (searchTerm) {
+                filteredPets = filteredPets.filter(pet =>
+                    (pet.nombre && pet.nombre.toLowerCase().includes(searchTerm)) ||
+                    (pet.especie && pet.especie.toLowerCase().includes(searchTerm)) ||
+                    (pet.raza && pet.raza.toLowerCase().includes(searchTerm)) ||
+                    (pet.descripcion && pet.descripcion.toLowerCase().includes(searchTerm))
+                );
+            }
+            console.log(`DEBUG pets.html: ${filteredPets.length} mascotas después de aplicar filtros.`);
+            renderPetCards(filteredPets);
+        }
+
+        function renderPetCards(petsArray) {
+            petsContainer.empty();
+            if (petsArray.length === 0) {
+                petsContainer.html(`
+                    <div class="col-12 text-center py-5">
+                        <p data-lang-key="noRecordsFound">${translations[currentLanguage].noRecordsFound}</p>
+                    </div>
+                `);
+                applyTranslations();
+                return;
+            }
+
+            const authenticatedUser = window.AuthService.getAuthenticatedUser();
+            const isAdmin = authenticatedUser && authenticatedUser.id_rol === 1;
+
+            petsArray.forEach(pet => {
+                const translatedSpecies = translations[currentLanguage].species || 'Especie';
+                const translatedBreed = translations[currentLanguage].breed || 'Raza';
+                const translatedAge = translations[currentLanguage].age || 'Edad';
+                const translatedSize = translations[currentLanguage].size || 'Tamaño';
+                const translatedAdoptionStatus = translations[currentLanguage].adoptionStatus || 'Estado de Adopción';
+                const translatedViewDetails = translations[currentLanguage].viewDetails || 'Ver Detalles';
+                const translatedAdoptButton = translations[currentLanguage].adoptButton || 'Adoptar';
+                const translatedEditButton = translations[currentLanguage].editButton || 'Editar';
+                const translatedDeleteButton = translations[currentLanguage].deleteButton || 'Eliminar';
+                const translatedYears = translations[currentLanguage].years || 'años';
+
+                const imageUrl = pet.foto_url && (pet.foto_url.startsWith('http://') || pet.foto_url.startsWith('https://'))
+                                        ? pet.foto_url
+                                        : `https://placehold.co/400x300/e0e0e0/000000?text=${pet.nombre || 'Mascota'}`;
+
+                const petCard = `
+                    <div class="col">
+                        <div class="card h-100 shadow-sm">
+                            <img src="${imageUrl}" class="card-img-top" alt="${pet.nombre || 'Mascota'}" onerror="this.onerror=null;this.src='https://placehold.co/400x300/e0e0e0/000000?text=Imagen+No+Disponible';">
+                            <div class="card-body">
+                                <h5 class="card-title">${pet.nombre || 'Sin Nombre'}</h5>
+                                <p class="card-text"><strong>${translatedSpecies}:</strong> ${pet.especie || 'N/A'}</p>
+                                ${pet.raza ? `<p class="card-text"><strong>${translatedBreed}:</strong> ${pet.raza}</p>` : ''}
+                                <p class="card-text"><strong>${translatedAge}:</strong> ${pet.edad || 'N/A'} ${translatedYears}</p>
+                                ${pet.tamano ? `<p class="card-text"><strong>${translatedSize}:</strong> ${pet.tamano}</p>` : ''}
+                                <p class="card-text"><strong>${translatedAdoptionStatus}:</strong> ${pet.estado_adopcion || 'N/A'}</p>
+                                <button class="btn btn-primary btn-sm mt-2 view-details-btn" data-lang-key="viewDetails" data-pet-id="${pet.id_mascota}">${translatedViewDetails}</button>
+                                ${!isAdmin ? `<button class="btn btn-outline-primary btn-sm mt-2 ms-2 adopt-btn" data-lang-key="adoptButton" data-pet-id="${pet.id_mascota}">${translatedAdoptButton}</button>` : ''}
+                                <button class="btn btn-info btn-sm mt-2 ms-2 edit-pet-btn" data-lang-key="editButton" data-pet-id="${pet.id_mascota}">${translatedEditButton}</button>
+                                <button class="btn btn-danger btn-sm mt-2 ms-2 delete-pet-btn" data-lang-key="deleteButton" data-pet-id="${pet.id_mascota}">${translatedDeleteButton}</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                petsContainer.append(petCard);
+            });
+            applyTranslations();
+        }
+
+        loadPets();
+
+        $(document).off('click', '#addPetBtn').on('click', '#addPetBtn', function() {
+            console.log("DEBUG pets.html: Clic en botón 'Añadir Mascota'. Abriendo modal.");
+            $('#addPetForm')[0].reset();
+            const today = new Date().toISOString().slice(0,10);
+            $('#petRescueDate').val(today);
+            $('#addPetModal').modal('show');
+        });
+
+        $(document).off('submit', '#addPetForm').on('submit', '#addPetForm', async function(e) {
+            e.preventDefault();
+            console.log("DEBUG pets.html: Enviando formulario de añadir mascota.");
+
+            const petData = {
+                nombre: $('#petName').val(), especie: $('#petSpecies').val(), raza: $('#petBreed').val() || null,
+                edad: parseInt($('#petAge').val()) || null, sexo: $('#petSex').val(), tamano: $('#petSize').val() || null,
+                descripcion: $('#petDescription').val() || null, fecha_rescate: $('#petRescueDate').val(),
+                estado_adopcion: $('#petAdoptionStatus').val(), id_usuario: parseInt($('#petUserId').val()),
+                id_refugio: parseInt($('#petRefugeId').val()), estado: $('#petStatus').val()
+            };
+            const fotoUrl = $('#petPhotoUrl').val();
+
+            console.log("DEBUG pets.html: Datos de la mascota a enviar (petData):", JSON.stringify(petData, null, 2));
+            console.log("DEBUG pets.html: URL de la foto a intentar guardar (fotoUrl):", fotoUrl);
+
+            if (!petData.nombre || !petData.especie || !petData.sexo || !petData.estado_adopcion || !petData.estado || isNaN(petData.id_usuario) || isNaN(petData.id_refugio)) {
+                Swal.fire({ icon: 'error', title: translations[currentLanguage].formCorrectionError, text: 'Por favor, rellena todos los campos obligatorios y asegúrate de que los IDs sean números válidos.' });
+                return;
+            }
+
+            try {
+                console.log("DEBUG pets.html: Llamando window.ApiService.post('/mascotas', petData, true)");
+                const createPetResponse = await window.ApiService.post('/mascotas', petData, true);
+                console.log("DEBUG pets.html: Respuesta de la API al crear mascota:", createPetResponse);
+
+                if (createPetResponse.status === 'success' || createPetResponse.status === 'éxito') {
+                    const newMascotaId = createPetResponse.id_mascota;
+                    if (fotoUrl && (fotoUrl.startsWith('http://') || fotoUrl.startsWith('https://'))) {
+                        const mediaData = { id_mascota: newMascotaId, url_archivo: fotoUrl, tipo_archivo: 'imagen', descripcion: `Foto para ${petData.nombre}` };
+                        console.log("DEBUG pets.html: Datos de multimedia a enviar (mediaData):", JSON.stringify(mediaData, null, 2));
+                        console.log("DEBUG pets.html: Llamando window.ApiService.post('/galeriamultimedia', mediaData, true)");
+                        const createMediaResponse = await window.ApiService.post('/galeriamultimedia', mediaData, true);
+                        console.log("DEBUG pets.html: Respuesta de la API al añadir multimedia:", createMediaResponse);
+                        if (createMediaResponse.status !== 'success' && createMediaResponse.status !== 'éxito') {
+                            Swal.fire({ icon: 'warning', title: 'Mascota creada, pero error en la foto', text: 'La mascota se creó, pero hubo un problema al guardar la foto. ' + (createMediaResponse.message || '') });
+                        }
+                    }
+                    Swal.fire({ icon: 'success', title: translations[currentLanguage].createSuccess, text: createPetResponse.message || 'Mascota añadida exitosamente.' });
+                    $('#addPetModal').modal('hide');
+                    $('#addPetForm')[0].reset();
+                    loadPets();
+                } else {
+                    Swal.fire({ icon: 'error', title: translations[currentLanguage].createError, text: createPetResponse.message || 'Error al añadir la mascota.' });
+                }
+            } catch (error) {
+                console.error("ERROR pets.html: Fallo al añadir mascota (captura general):", error);
+                let errorMessage = 'Error de comunicación con el servidor al añadir mascota.';
+                if (error.responseJSON && error.responseJSON.message) { errorMessage = error.responseJSON.message; } 
+                else if (error.statusText) { errorMessage = `Error de red: ${error.statusText} (Código: ${error.status || 'N/A'})`; } 
+                else if (error.message) { errorMessage = `Error JavaScript: ${error.message}`; }
+                Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: errorMessage });
+            }
+        });
+
+        $(document).off('click', '.view-details-btn').on('click', '.view-details-btn', async function() {
+            const petId = $(this).data('pet-id');
+            console.log(`DEBUG pets.html: Clic en 'Ver Detalles' para Mascota ID: ${petId}`);
+            try {
+                console.log(`DEBUG pets.html: Llamando window.ApiService.get('/mascotas/${petId}', true)`);
+                const response = await window.ApiService.get(`/mascotas/${petId}`, true);
+                console.log("DEBUG pets.html: Respuesta de la API al obtener detalles de mascota:", response);
+                if ((response.status === 'success' || response.status === 'éxito') && response.data) {
+                    const pet = response.data;
+                    const detailImageUrl = pet.fotos && pet.fotos.length > 0 && (pet.fotos[0].url_archivo.startsWith('http://') || pet.fotos[0].url_archivo.startsWith('https://'))
+                                                        ? pet.fotos[0].url_archivo
+                                                        : `https://placehold.co/400x300/e0e0e0/000000?text=${pet.nombre || 'Mascota'}`;
+                    $('#detailPetPhoto').attr('src', detailImageUrl);
+                    $('#detailPetName').text(pet.nombre || 'N/A'); $('#detailPetSpecies').text(pet.especie || 'N/A');
+                    $('#detailPetBreed').text(pet.raza || 'N/A'); $('#detailPetAge').text(pet.edad || 'N/A');
+                    $('#detailPetSex').text(pet.sexo || 'N/A'); $('#detailPetSize').text(pet.tamano || 'N/A');
+                    $('#detailPetDescription').text(pet.descripcion || 'N/A'); $('#detailPetRescueDate').text(pet.fecha_rescate || 'N/A');
+                    $('#detailPetAdoptionStatus').text(pet.estado_adopcion || 'N/A'); $('#detailPetStatus').text(pet.estado || 'N/A');
+                    $('#detailPetUserId').text(pet.id_usuario || 'N/A'); $('#detailPetRefugeId').text(pet.id_refugio || 'N/A');
+                    $('#viewPetDetailsModal').modal('show');
+                    applyTranslations();
+                    console.log("DEBUG pets.html: Modal de detalles de mascota mostrado exitosamente.");
+                } else {
+                    console.warn("DEBUG pets.html: No se pudieron obtener los detalles de la mascota o la API devolvió un error.");
+                    Swal.fire({ icon: 'warning', title: translations[currentLanguage].generalError, text: response.message || 'No se pudieron cargar los detalles de la mascota.' });
+                }
+            } catch (error) {
+                console.error("ERROR pets.html: Fallo al obtener detalles de mascota desde la API:", error);
+                let errorMessage = 'Error de comunicación con el servidor al cargar los detalles de la mascota.';
+                if (error.responseJSON && error.responseJSON.message) { errorMessage = error.responseJSON.message; } 
+                else if (error.statusText) { errorMessage = `Error de red: ${error.statusText} (Código: ${error.status || 'N/A'})`; } 
+                else if (error.message) { errorMessage = `Error JavaScript: ${error.message}`; }
+                Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: errorMessage });
+            }
+        });
+
+        $(document).off('click', '.edit-pet-btn').on('click', '.edit-pet-btn', async function() {
+            const petId = $(this).data('pet-id');
+            console.log(`DEBUG pets.html: Clic en 'Editar' para Mascota ID: ${petId}`);
+            try {
+                console.log(`DEBUG pets.html: Llamando window.ApiService.get('/mascotas/${petId}', true) para edición`);
+                const response = await window.ApiService.get(`/mascotas/${petId}`, true);
+                if ((response.status === 'success' || response.status === 'éxito') && response.data) {
+                    const pet = response.data;
+                    console.log("DEBUG pets.html: Datos de mascota para edición:", pet);
+                    $('#editPetId').val(pet.id_mascota); $('#editPetName').val(pet.nombre);
+                    $('#editPetSpecies').val(pet.especie); $('#editPetBreed').val(pet.raza);
+                    $('#editPetAge').val(pet.edad); $('#editPetSex').val(pet.sexo);
+                    $('#editPetSize').val(pet.tamano); $('#editPetDescription').val(pet.descripcion);
+                    $('#editPetRescueDate').val(pet.fecha_rescate); $('#editPetAdoptionStatus').val(pet.estado_adopcion);
+                    $('#editPetStatus').val(pet.estado); $('#editPetUserId').val(pet.id_usuario);
+                    $('#editPetRefugeId').val(pet.id_refugio);
+                    $('#editPetPhotoUrl').val(pet.fotos && pet.fotos.length > 0 ? pet.fotos[0].url_archivo : '');
+                    $('#editPetModal').modal('show');
+                    applyTranslations();
+                    console.log("DEBUG pets.html: Modal de edición de mascota mostrado y pre-llenado.");
+                } else {
+                    Swal.fire({ icon: 'warning', title: translations[currentLanguage].generalError, text: response.message || 'No se pudieron cargar los datos de la mascota para edición.' });
+                }
+            } catch (error) {
+                console.error("ERROR pets.html: Fallo al obtener datos de mascota para edición:", error);
+                Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: 'Error de comunicación al cargar datos para edición.' });
+            }
+        });
+
+        $(document).off('submit', '#editPetForm').on('submit', '#editPetForm', async function(e) {
+            e.preventDefault();
+            console.log("DEBUG pets.html: Enviando formulario de edición de mascota.");
+
+            const petId = $('#editPetId').val();
+            const petData = {
+                nombre: $('#editPetName').val(), especie: $('#editPetSpecies').val(), raza: $('#editPetBreed').val() || null,
+                edad: parseInt($('#editPetAge').val()) || null, sexo: $('#editPetSex').val(), tamano: $('#editPetSize').val() || null,
+                descripcion: $('#editPetDescription').val() || null, fecha_rescate: $('#editPetRescueDate').val(),
+                estado_adopcion: $('#editPetAdoptionStatus').val(), id_usuario: parseInt($('#editPetUserId').val()),
+                id_refugio: parseInt($('#editPetRefugeId').val()), estado: $('#editPetStatus').val(),
+                foto_url: $('#editPetPhotoUrl').val() || null, tipo_archivo: 'imagen', descripcion_foto: `Foto de ${$('#editPetName').val()}`
+            };
+
+            console.log("DEBUG pets.html: Datos de la mascota a actualizar (petData):", JSON.stringify(petData, null, 2));
+            console.log("DEBUG pets.html: ID de la mascota a actualizar:", petId);
+
+            if (!petData.nombre || !petData.especie || !petData.sexo || !petData.estado_adopcion || !petData.estado || isNaN(petData.id_usuario) || isNaN(petData.id_refugio)) {
+                Swal.fire({ icon: 'error', title: translations[currentLanguage].formCorrectionError, text: 'Por favor, rellena todos los campos obligatorios y asegúrate de que los IDs sean números válidos.' });
+                return;
+            }
+
+            try {
+                console.log(`DEBUG pets.html: Llamando window.ApiService.put('/mascotas/${petId}', petData, true)`);
+                const updatePetResponse = await window.ApiService.put(`/mascotas/${petId}`, petData, true);
+                console.log("DEBUG pets.html: Respuesta de la API al actualizar mascota:", updatePetResponse);
+
+                if (updatePetResponse.status === 'success' || updatePetResponse.status === 'éxito') {
+                    Swal.fire({ icon: 'success', title: translations[currentLanguage].updateSuccess, text: updatePetResponse.message || 'Mascota actualizada exitosamente.' });
+                    $('#editPetModal').modal('hide');
+                    loadPets();
+                } else {
+                    Swal.fire({ icon: 'error', title: translations[currentLanguage].updateError, text: updatePetResponse.message || 'Error al actualizar la mascota.' });
+                }
+            } catch (error) {
+                console.error("ERROR pets.html: Fallo al actualizar mascota (captura general):", error);
+                let errorMessage = 'Error de comunicación con el servidor al actualizar mascota.';
+                if (error.responseJSON && error.responseJSON.message) { errorMessage = error.responseJSON.message; } 
+                else if (error.statusText) { errorMessage = `Error de red: ${error.statusText} (Código: ${error.status || 'N/A'})`; } 
+                else if (error.message) { errorMessage = `Error JavaScript: ${error.message}`; }
+                Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: errorMessage });
+            }
+        });
+
+        // Lógica para el botón "ELIMINAR"
+        $(document).off('click', '.delete-pet-btn').on('click', '.delete-pet-btn', function() {
+            const petId = $(this).data('pet-id');
+            console.log(`DEBUG pets.html: Clic en 'Eliminar' para Mascota ID: ${petId}`);
+
+            console.log("DEBUG pets.html: Verificando window.ApiService y window.ApiService.remove antes de la eliminación.");
+            console.log("DEBUG pets.html: typeof window.ApiService:", typeof window.ApiService);
+            console.log("DEBUG pets.html: typeof window.ApiService.remove:", typeof window.ApiService.remove);
+            // debugger; // Puedes descomentar esto temporalmente para depurar si el problema persiste
+
+            if (typeof window.ApiService === 'undefined' || typeof window.ApiService.remove !== 'function') {
+                console.error("ERROR pets.html: window.ApiService.remove no está disponible o no es una función.");
+                Swal.fire({
+                    icon: 'error',
+                    title: translations[currentLanguage].generalError,
+                    text: 'Error interno: La función de eliminación no está disponible. Por favor, recarga la página.'
+                });
+                return;
+            }
+
+            Swal.fire({
+                title: translations[currentLanguage].confirmDeleteTitle, text: translations[currentLanguage].confirmDeleteText,
+                icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', cancelButtonColor: '#3085d6',
+                confirmButtonText: translations[currentLanguage].yesDeleteIt, cancelButtonText: translations[currentLanguage].cancelButton
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    try {
+                        console.log(`DEBUG pets.html: Llamando window.ApiService.remove('/mascotas/${petId}', true)`);
+                        const response = await window.ApiService.remove(`/mascotas/${petId}`, true); // <<-- ¡IMPORTANTE! Cambiado a 'remove'
+
+                        if (response.status === 'success' || response.status === 'éxito') {
+                            Swal.fire({ icon: 'success', title: translations[currentLanguage].deleteSuccess, text: response.message || 'Mascota eliminada exitosamente.' });
+                            loadPets();
+                        } else {
+                            Swal.fire({ icon: 'error', title: translations[currentLanguage].deleteError, text: response.message || 'Error al eliminar la mascota.' });
+                        }
+                    } catch (error) {
+                        console.error("ERROR pets.html: Fallo al eliminar mascota desde la API:", error);
+                        let errorMessage = 'Error de comunicación con el servidor al eliminar mascota.';
+                        if (error.responseJSON && error.responseJSON.message) { errorMessage = error.responseJSON.message; } 
+                        else if (error.statusText) { errorMessage = `Error de red: ${error.statusText} (Código: ${error.status || 'N/A'})`; } 
+                        else if (error.message) { errorMessage = `Error JavaScript: ${error.message}`; }
+                        Swal.fire({ icon: 'error', title: translations[currentLanguage].generalError, text: errorMessage });
+                    }
+                }
+            });
+        });
+
+        $(document).off('click', '.adopt-btn').on('click', '.adopt-btn', function() {
+            const petId = $(this).data('pet-id');
+            console.log(`DEBUG pets.html: Clic en 'Adoptar' para Mascota ID: ${petId}`);
+            Swal.fire({ icon: 'info', title: 'Solicitud de Adopción', text: `Iniciar proceso de adopción para Mascota ID: ${petId}. Funcionalidad en desarrollo.` });
+        });
+
+        $(document).off('change keyup', '#petSearch').on('change keyup', '#petSearch', function() {
+            applyFiltersAndRender();
+        });
+
+        $(document).off('click', '#backToDashboardBtn').on('click', '#backToDashboardBtn', function() {
+            const authenticatedUser = window.AuthService.getAuthenticatedUser();
+            if (authenticatedUser && authenticatedUser.id_rol === 1) {
+                window.loadComponent('dashboard-admin');
+            } else {
+                window.loadComponent('dashboard-user');
+            }
+        });
+
+    })();
+</script>
