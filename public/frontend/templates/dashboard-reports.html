@@ -1,0 +1,344 @@
+<!-- public/frontend/templates/dashboard-reports.html -->
+
+<div id="dashboardReportsComponentContainer" class="row justify-content-center">
+    <div class="col-md-10 col-lg-10">
+        <h2 class="text-center mb-4" data-lang-key="statisticsAndReportsTitle">Estadísticas y Reportes</h2>
+
+        <!-- Botón Atrás -->
+        <div class="mb-3">
+            <button id="backToDashboardBtn" class="btn btn-secondary" data-lang-key="backButton">Atrás</button>
+        </div>
+
+        <div class="row">
+            <!-- Tarjeta: Mascotas Disponibles (Gráfico de Dona) -->
+            <div class="col-md-6 mb-4">
+                <div class="card text-center shadow-sm rounded-3 h-100">
+                    <div class="card-body d-flex flex-column justify-content-center align-items-center">
+                        <h5 class="card-title" data-lang-key="availablePetsChart">Mascotas por Estado</h5>
+                        <div class="chart-container" style="position: relative; height:200px; width:200px; margin: auto;">
+                            <canvas id="petsStatusChart"></canvas>
+                        </div>
+                        <p class="card-text mt-3" data-lang-key="totalPetsCount">Total de Mascotas: <span id="totalPetsCountValue">...</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tarjeta: Adopciones Realizadas (Gráfico de Barras) -->
+            <div class="col-md-6 mb-4">
+                <div class="card text-center shadow-sm rounded-3 h-100">
+                    <div class="card-body d-flex flex-column justify-content-center align-items-center">
+                        <h5 class="card-title" data-lang-key="adoptionsStatusChart">Solicitudes de Adopción por Estado</h5>
+                        <div class="chart-container" style="position: relative; height:200px; width:100%; max-width: 400px; margin: auto;">
+                            <canvas id="adoptionsStatusChart"></canvas>
+                        </div>
+                        <p class="card-text mt-3" data-lang-key="totalRequestsCount">Total de Solicitudes: <span id="totalRequestsCountValue">...</span></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tarjeta: Refugios Registrados (Ahora con Gráfico de Barras) -->
+            <div class="col-md-12 mb-4">
+                <div class="card text-center shadow-sm rounded-3 h-100">
+                    <div class="card-body d-flex flex-column justify-content-center align-items-center">
+                        <h5 class="card-title" data-lang-key="registeredSheltersChart">Refugios Registrados</h5>
+                        <div class="chart-container" style="position: relative; height:150px; width:100%; max-width: 200px; margin: auto;">
+                            <canvas id="sheltersChart"></canvas>
+                        </div>
+                        <p class="card-text mt-3" data-lang-key="totalSheltersCount">Total de Refugios: <span id="totalSheltersCountValue">...</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sección para futuros reportes detallados o gráficos -->
+        <div class="mt-5">
+            <h3 data-lang-key="detailedReports">Reportes Detallados</h3>
+            <p data-lang-key="reportsPlaceholder">Aquí se podrían añadir gráficos y tablas más detalladas sobre las tendencias de adopción, tipos de mascotas más solicitadas, etc.</p>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // Script para dashboard-reports.html
+    // Envolver la lógica principal en $(document).ready() para asegurar que el DOM esté listo
+    $(document).ready(function() {
+        console.log("DEBUG dashboard-reports.html: Iniciando carga del script y esperando al DOM.");
+        applyTranslations(); // Aplicar traducciones a los elementos estáticos iniciales
+
+        const componentContainer = $('#dashboardReportsComponentContainer');
+        let petsChartInstance = null; // Para almacenar la instancia del gráfico de mascotas
+        let adoptionsChartInstance = null; // Para almacenar la instancia del gráfico de adopciones
+        let sheltersChartInstance = null; // Para almacenar la instancia del gráfico de refugios
+
+        /**
+         * Carga dinámicamente la librería Chart.js y devuelve una promesa que se resuelve
+         * cuando la librería está completamente cargada.
+         */
+        function loadChartJs() {
+            return new Promise((resolve, reject) => {
+                // Verificar si Chart.js ya está cargado para evitar duplicados
+                if (typeof Chart !== 'undefined') {
+                    console.log("DEBUG dashboard-reports.html: Chart.js ya está cargado.");
+                    resolve();
+                    return;
+                }
+
+                console.log("DEBUG dashboard-reports.html: Cargando Chart.js dinámicamente...");
+                const script = document.createElement('script');
+                script.src = "https://cdn.jsdelivr.net/npm/chart.js";
+                script.onload = () => {
+                    console.log("DEBUG dashboard-reports.html: Chart.js cargado exitosamente.");
+                    resolve();
+                };
+                script.onerror = () => {
+                    console.error("ERROR dashboard-reports.html: Fallo al cargar Chart.js.");
+                    reject(new Error("Fallo al cargar Chart.js."));
+                };
+                document.head.appendChild(script);
+            });
+        }
+
+        async function loadStatistics() {
+            console.log("DEBUG dashboard-reports.html: Cargando estadísticas...");
+            
+            // Mostrar spinners mientras se carga
+            $('#totalPetsCountValue').text(translations[currentLanguage].loadingText || 'Cargando...');
+            $('#totalRequestsCountValue').text(translations[currentLanguage].loadingText || 'Cargando...');
+            $('#totalSheltersCountValue').text(translations[currentLanguage].loadingText || 'Cargando...');
+
+            // Destruir instancias de gráficos anteriores si existen
+            if (petsChartInstance) {
+                petsChartInstance.destroy();
+                petsChartInstance = null;
+            }
+            if (adoptionsChartInstance) {
+                adoptionsChartInstance.destroy();
+                adoptionsChartInstance = null;
+            }
+            if (sheltersChartInstance) {
+                sheltersChartInstance.destroy();
+                sheltersChartInstance = null;
+            }
+
+            try {
+                // Asegurarse de que Chart.js esté cargado antes de hacer las llamadas a la API
+                // Esto es crucial para que Chart esté definido cuando se intente usar.
+                await loadChartJs(); 
+
+                const [petsResult, applicationsResult, sheltersResult] = await Promise.allSettled([
+                    window.ApiService.get('/mascotas', false),
+                    window.ApiService.get('/solicitudes-adopcion', true),
+                    window.ApiService.get('/refugios', false)
+                ]);
+
+                // --- Procesar Mascotas y Dibujar Gráfico de Dona ---
+                if (petsResult.status === 'fulfilled' && (petsResult.value.status === 'success' || petsResult.value.status === 'éxito')) {
+                    const allPets = petsResult.value.data || [];
+                    const availablePetsCount = allPets.filter(pet => pet.estado_adopcion === 'Disponible').length;
+                    const otherPetsCount = allPets.length - availablePetsCount;
+
+                    $('#totalPetsCountValue').text(allPets.length);
+
+                    const ctxPets = document.getElementById('petsStatusChart').getContext('2d');
+                    petsChartInstance = new Chart(ctxPets, {
+                        type: 'doughnut',
+                        data: {
+                            labels: [
+                                translations[currentLanguage].statusAvailable || 'Disponible',
+                                translations[currentLanguage].statusOther || 'Otros'
+                            ],
+                            datasets: [{
+                                data: [availablePetsCount, otherPetsCount],
+                                backgroundColor: [
+                                    'rgba(75, 192, 192, 0.8)', // Verde azulado para Disponible
+                                    'rgba(255, 99, 132, 0.8)' // Rojo suave para Otros
+                                ],
+                                borderColor: [
+                                    'rgba(75, 192, 192, 1)',
+                                    'rgba(255, 99, 132, 1)'
+                                ],
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: {
+                                    position: 'bottom',
+                                },
+                                title: {
+                                    display: false, // El título ya está en la tarjeta
+                                }
+                            }
+                        }
+                    });
+                    console.log(`DEBUG dashboard-reports.html: Gráfico de mascotas dibujado. Disponibles: ${availablePetsCount}, Otros: ${otherPetsCount}`);
+                } else {
+                    $('#totalPetsCountValue').text('N/A');
+                    console.warn("WARN dashboard-reports.html: No se pudieron cargar los datos de mascotas para el gráfico.", petsResult.reason || (petsResult.value ? petsResult.value.message : 'Respuesta de API inesperada.'));
+                    $('#petsStatusChart').parent().html(`<p class="text-danger">${translations[currentLanguage].errorLoadingChart || 'Error al cargar el gráfico de mascotas.'}</p>`);
+                }
+
+                // --- Procesar Solicitudes y Dibujar Gráfico de Barras ---
+                if (applicationsResult.status === 'fulfilled' && (applicationsResult.value.status === 'success' || applicationsResult.value.status === 'éxito')) {
+                    const allApplications = applicationsResult.value.data || [];
+                    const pendingCount = allApplications.filter(app => app.estado_solicitud === 'Pendiente').length;
+                    const approvedCount = allApplications.filter(app => app.estado_solicitud === 'Aprobada').length; 
+                    const rejectedCount = allApplications.filter(app => app.estado_solicitud === 'Rechazada').length;
+                    const cancelledCount = allApplications.filter(app => app.estado_solicitud === 'Cancelada').length;
+
+                    $('#totalRequestsCountValue').text(allApplications.length);
+
+                    const ctxAdoptions = document.getElementById('adoptionsStatusChart').getContext('2d');
+                    adoptionsChartInstance = new Chart(ctxAdoptions, {
+                        type: 'bar',
+                        data: {
+                            labels: [
+                                translations[currentLanguage].statusPending || 'Pendiente',
+                                translations[currentLanguage].statusApproved || 'Aprobada',
+                                translations[currentLanguage].statusRejected || 'Rechazada',
+                                translations[currentLanguage].statusCancelled || 'Cancelada'
+                            ],
+                            datasets: [{
+                                label: translations[currentLanguage].numberOfRequests || 'Número de Solicitudes',
+                                data: [pendingCount, approvedCount, rejectedCount, cancelledCount],
+                                backgroundColor: [
+                                    'rgba(255, 206, 86, 0.8)', // Amarillo para Pendiente
+                                    'rgba(75, 192, 192, 0.8)', // Verde azulado para Aprobada
+                                    'rgba(255, 99, 132, 0.8)', // Rojo suave para Rechazada
+                                    'rgba(153, 102, 255, 0.8)' // Púrpura para Cancelada
+                                ],
+                                borderColor: [
+                                    'rgba(255, 206, 86, 1)',
+                                    'rgba(75, 192, 192, 1)',
+                                    'rgba(255, 99, 132, 1)',
+                                    'rgba(153, 102, 255, 1)'
+                                ],
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                        precision: 0 // Asegura que los ticks sean números enteros
+                                    }
+                                }
+                            },
+                            plugins: {
+                                legend: {
+                                    display: false // La leyenda no es necesaria para un solo dataset en barras
+                                },
+                                title: {
+                                    display: false,
+                                }
+                            }
+                        }
+                    });
+                    console.log(`DEBUG dashboard-reports.html: Gráfico de solicitudes dibujado. Pendientes: ${pendingCount}, Aprobadas: ${approvedCount}, Rechazadas: ${rejectedCount}, Canceladas: ${cancelledCount}`);
+                } else {
+                    $('#totalRequestsCountValue').text('N/A');
+                    console.warn("WARN dashboard-reports.html: Fallo al cargar los datos de solicitudes para el gráfico.", applicationsResult.reason || (applicationsResult.value ? applicationsResult.value.message : 'Respuesta de API inesperada.'));
+                    $('#adoptionsStatusChart').parent().html(`<p class="text-danger">${translations[currentLanguage].errorLoadingChart || 'Error al cargar el gráfico de solicitudes.'}</p>`);
+                }
+
+                // --- Procesar Refugios Registrados y Dibujar Gráfico de Barras ---
+                if (sheltersResult.status === 'fulfilled' && (sheltersResult.value.status === 'success' || sheltersResult.value.status === 'éxito')) {
+                    const registeredShelters = sheltersResult.value.data ? sheltersResult.value.data.length : 0;
+                    $('#totalSheltersCountValue').text(registeredShelters); // Actualizar el texto del total
+
+                    const ctxShelters = document.getElementById('sheltersChart').getContext('2d');
+                    sheltersChartInstance = new Chart(ctxShelters, {
+                        type: 'bar',
+                        data: {
+                            labels: [translations[currentLanguage].registeredShelters || 'Refugios Registrados'],
+                            datasets: [{
+                                label: translations[currentLanguage].numberOfShelters || 'Número de Refugios',
+                                data: [registeredShelters],
+                                backgroundColor: 'rgba(54, 162, 235, 0.8)', // Azul para Refugios
+                                borderColor: 'rgba(54, 162, 235, 1)',
+                                borderWidth: 1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                x: {
+                                    display: false // Ocultar el eje X si solo hay una barra
+                                },
+                                y: {
+                                    beginAtZero: true,
+                                    max: Math.max(registeredShelters + 1, 5), // Ajustar el máximo para que la barra se vea bien
+                                    ticks: {
+                                        precision: 0 // Asegura que los ticks sean números enteros
+                                    }
+                                }
+                            },
+                            plugins: {
+                                legend: {
+                                    display: false
+                                },
+                                title: {
+                                    display: false,
+                                }
+                            }
+                        }
+                    });
+                    console.log(`DEBUG dashboard-reports.html: Gráfico de refugios dibujado. Registrados: ${registeredShelters}`);
+                } else {
+                    $('#totalSheltersCountValue').text('N/A');
+                    console.warn("WARN dashboard-reports.html: No se pudieron cargar los refugios registrados para el gráfico.", sheltersResult.reason || (sheltersResult.value ? sheltersResult.value.message : 'Respuesta de API inesperada.'));
+                    $('#sheltersChart').parent().html(`<p class="text-danger">${translations[currentLanguage].errorLoadingChart || 'Error al cargar el gráfico de refugios.'}</p>`);
+                }
+
+                console.log("DEBUG dashboard-reports.html: Intento de carga de estadísticas completado.");
+
+            } catch (error) {
+                console.error("ERROR dashboard-reports.html: Fallo inesperado en loadStatistics o Promise.allSettled:", error);
+                $('#totalPetsCountValue').text('Error');
+                $('#totalRequestsCountValue').text('Error');
+                $('#totalSheltersCountValue').text('Error');
+                Swal.fire({
+                    icon: 'error',
+                    title: translations[currentLanguage].generalError,
+                    text: translations[currentLanguage].errorLoadingStatistics || 'Error al cargar las estadísticas.'
+                });
+            }
+        }
+
+        // Cargar estadísticas al cargar el componente
+        loadStatistics();
+
+        // --- Event Listeners ---
+        $(document).off('click', '#backToDashboardBtn').on('click', '#backToDashboardBtn', function() {
+            window.loadComponent('dashboard-admin');
+        });
+
+        // Limpieza de eventos y destrucción de instancias de Chart al salir del componente
+        $(document).on('componentUnloaded', function(event, unloadedComponentName) {
+            if (unloadedComponentName === 'dashboard-reports') {
+                if (petsChartInstance) {
+                    petsChartInstance.destroy();
+                    petsChartInstance = null;
+                }
+                if (adoptionsChartInstance) {
+                    adoptionsChartInstance.destroy();
+                    adoptionsChartInstance = null;
+                }
+                if (sheltersChartInstance) { // Destruir instancia del gráfico de refugios
+                    sheltersChartInstance.destroy();
+                    sheltersChartInstance = null;
+                }
+                componentContainer.off(); 
+                console.log("DEBUG dashboard-reports.html: Componente de reportes desvinculado y gráficos destruidos.");
+            }
+        });
+
+    }); // Cierre de $(document).ready()
+</script>
