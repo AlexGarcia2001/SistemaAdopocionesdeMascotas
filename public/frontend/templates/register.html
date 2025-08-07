@@ -1,0 +1,167 @@
+<!-- PROMPT: Modificar el formulario de registro (register.html) para integrar la validación de formularios
+             utilizando el módulo FormValidator. Se deben validar campos obligatorios, email,
+             longitud de contraseña y coincidencia de contraseñas.
+             También se debe añadir el manejo del envío del formulario (submit) llamando a AuthService.
+             Añadir más console.log para depuración detallada.
+-->
+<div class="row justify-content-center">
+    <div class="col-md-9 col-lg-7">
+        <h2 class="text-center mb-4" data-lang-key="registerTitle">Registrarse</h2>
+        <form id="registerForm" novalidate> <!-- Añadir novalidate para deshabilitar la validación HTML5 por defecto -->
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="registerName" class="form-label visually-hidden" data-lang-key="registerNamePlaceholder">Nombre</label>
+                    <input type="text" class="form-control" id="registerName" name="nombre" placeholder="Nombre" data-lang-key="registerNamePlaceholder" required>
+                    <div class="invalid-feedback" id="registerNameFeedback"></div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="registerLastName" class="form-label visually-hidden" data-lang-key="registerLastNamePlaceholder">Apellido</label>
+                    <input type="text" class="form-control" id="registerLastName" name="apellido" placeholder="Apellido" data-lang-key="registerLastNamePlaceholder" required>
+                    <div class="invalid-feedback" id="registerLastNameFeedback"></div>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label for="registerEmail" class="form-label visually-hidden" data-lang-key="registerEmailPlaceholder">Correo Electrónico</label>
+                <input type="email" class="form-control" id="registerEmail" name="correo_electronico" placeholder="Correo Electrónico" data-lang-key="registerEmailPlaceholder" required>
+                <div class="invalid-feedback" id="registerEmailFeedback"></div>
+            </div>
+            <div class="mb-3">
+                <label for="registerPhone" class="form-label visually-hidden" data-lang-key="registerPhonePlaceholder">Teléfono</label>
+                <input type="tel" class="form-control" id="registerPhone" name="telefono" placeholder="Teléfono" data-lang-key="registerPhonePlaceholder">
+            </div>
+            <div class="mb-3">
+                <label for="registerAddress" class="form-label visually-hidden" data-lang-key="registerAddressPlaceholder">Dirección</label>
+                <input type="text" class="form-control" id="registerAddress" name="direccion" placeholder="Dirección" data-lang-key="registerAddressPlaceholder">
+            </div>
+            <div class="mb-3">
+                <label for="registerUsername" class="form-label visually-hidden" data-lang-key="registerUsernamePlaceholder">Nombre de Usuario</label>
+                <input type="text" class="form-control" id="registerUsername" name="nombre_usuario" placeholder="Nombre de Usuario" data-lang-key="registerUsernamePlaceholder" required>
+                <div class="invalid-feedback" id="registerUsernameFeedback"></div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="registerPassword" class="form-label visually-hidden" data-lang-key="registerPasswordPlaceholder">Contraseña</label>
+                    <input type="password" class="form-control" id="registerPassword" name="contrasena" placeholder="Contraseña" data-lang-key="registerPasswordPlaceholder" required>
+                    <div class="invalid-feedback" id="registerPasswordFeedback"></div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="registerConfirmPassword" class="form-label visually-hidden" data-lang-key="registerConfirmPasswordPlaceholder">Confirmar Contraseña</label>
+                    <input type="password" class="form-control" id="registerConfirmPassword" name="confirm_contrasena" placeholder="Confirmar Contraseña" data-lang-key="registerConfirmPasswordPlaceholder" required>
+                    <div class="invalid-feedback" id="registerConfirmPasswordFeedback"></div>
+                </div>
+            </div>
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary btn-lg" data-lang-key="registerSubmitButton">Crear Cuenta</button>
+            </div>
+            <p class="text-center mt-3">
+                <a href="#" id="showLoginForm" data-lang-key="registerLoginLink">¿Ya tienes cuenta? Inicia sesión aquí.</a>
+            </p>
+        </form>
+    </div>
+</div>
+
+<script>
+    // PROMPT: Modificar el script de register.html para ejecutar la lógica directamente
+    //         sin $(document).ready() para asegurar que los listeners se adjunten
+    //         correctamente cuando el componente se carga dinámicamente.
+    //         Debe llamar a AuthService.registerUser para el registro real.
+    //         Añadir más console.log para depuración detallada.
+
+    console.log("DEBUG: Script de register.html cargado.");
+    
+    // Asegurarse de que las traducciones se apliquen cuando el componente se carga
+    applyTranslations();
+    console.log("DEBUG: Traducciones aplicadas en register.html.");
+
+    // Manejar clic en el enlace para mostrar el formulario de login
+    $('#showLoginForm').on('click', function(e) {
+        e.preventDefault();
+        console.log("DEBUG: Clic en '¿Ya tienes cuenta? Inicia sesión aquí.'");
+        window.loadComponent('login');
+    });
+
+    // Manejar el envío del formulario de registro
+    $('#registerForm').on('submit', async function(e) { // AHORA ES ASYNC
+        e.preventDefault();
+        console.log("DEBUG: Evento submit del formulario de registro detectado.");
+
+        let isValid = true; // Bandera de validación
+
+        // Validar campos obligatorios
+        isValid = window.FormValidator.validateRequired($('#registerName')) && isValid;
+        isValid = window.FormValidator.validateRequired($('#registerLastName')) && isValid;
+        isValid = window.FormValidator.validateRequired($('#registerUsername')) && isValid;
+        isValid = window.FormValidator.validateRequired($('#registerPassword')) && isValid;
+        isValid = window.FormValidator.validateRequired($('#registerConfirmPassword')) && isValid;
+
+        // Validar formato de email
+        if (isValid && $('#registerEmail').val().trim() !== '') {
+            isValid = window.FormValidator.validateEmail($('#registerEmail')) && isValid;
+        }
+        
+        // Validar longitud de contraseña (mínimo 6 caracteres)
+        if (isValid && $('#registerPassword').val().trim() !== '') {
+            isValid = window.FormValidator.validatePassword($('#registerPassword'), 6) && isValid;
+        }
+        
+        // Validar que las contraseñas coincidan
+        if (isValid && $('#registerPassword').val().trim() !== '' && $('#registerConfirmPassword').val().trim() !== '') {
+            isValid = window.FormValidator.validatePasswordMatch($('#registerPassword'), $('#registerConfirmPassword')) && isValid;
+        }
+
+        console.log("DEBUG: Resultado de validación del formulario de registro: " + isValid);
+
+        if (isValid) {
+            console.log("DEBUG: Formulario de registro válido. Preparando datos para la API.");
+            const formData = {
+                nombre: $('#registerName').val(),
+                apellido: $('#registerLastName').val(),
+                email: $('#registerEmail').val(), 
+                telefono: $('#registerPhone').val(),
+                direccion: $('#registerAddress').val(),
+                nombre_usuario: $('#registerUsername').val(),
+                password: $('#registerPassword').val(), 
+                id_rol: 2, 
+                estado: 'Activo' 
+            };
+            
+            console.log("DEBUG: Datos a enviar a la API:", formData);
+            // Llamar a la función de registro de AuthService
+            try {
+                await window.AuthService.registerUser(formData); 
+                console.log("DEBUG: AuthService.registerUser llamado. Esperando respuesta.");
+            } catch (error) {
+                console.error("DEBUG: Error al llamar a AuthService.registerUser:", error);
+                Swal.fire({
+                    icon: 'error',
+                    title: translations[currentLanguage].generalError,
+                    text: translations[currentLanguage].registrationError || 'Error inesperado al intentar registrar.'
+                });
+            }
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: translations[currentLanguage].generalError,
+                text: translations[currentLanguage].formCorrectionError 
+            });
+        }
+    });
+
+    // Opcional: Validar al perder el foco (blur) en los campos
+    $('#registerName, #registerLastName, #registerEmail, #registerUsername, #registerPassword, #registerConfirmPassword').on('blur', function() {
+        const $this = $(this);
+        if ($this.attr('required')) {
+            window.FormValidator.validateRequired($this);
+        }
+        if ($this.attr('type') === 'email') {
+            window.FormValidator.validateEmail($this);
+        }
+        if ($this.attr('id') === 'registerPassword') {
+            window.FormValidator.validatePassword($this, 6);
+            window.FormValidator.validatePasswordMatch($this, $('#registerConfirmPassword'));
+        }
+        if ($this.attr('id') === 'registerConfirmPassword') {
+            window.FormValidator.validatePasswordMatch($('#registerPassword'), $this);
+        }
+    });
+</script>
