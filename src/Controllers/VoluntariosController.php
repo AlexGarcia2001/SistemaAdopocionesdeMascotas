@@ -1,0 +1,327 @@
+<?php
+
+namespace App\Controllers;
+
+use App\DB\Connection;
+use App\Models\Voluntario; // Asegúrate de importar el modelo Voluntario
+use PDOException;
+use PDO;
+// SECURITY: Importar el AuthMiddleware
+use App\Middleware\AuthMiddleware;
+
+class VoluntariosController
+{
+    private $db;
+    private $voluntarioModel;
+
+    public function __construct()
+    {
+        $this->db = Connection::getInstance()->getConnection();
+        $this->voluntarioModel = new Voluntario();
+
+        // Configuración de encabezados CORS y Content-Type para todas las respuestas de este controlador
+        header('Content-Type: application/json');
+        header('Access-Control-Allow-Origin: *'); // Permite acceso desde cualquier origen (para desarrollo)
+        header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+        header('Access-Control-Allow-Headers: Content-Type, Authorization');
+
+        // Manejo de peticiones OPTIONS (preflight requests de CORS)
+        if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+            http_response_code(200);
+            exit(); // Termina la ejecución para peticiones OPTIONS
+        }
+    }
+
+    /**
+     * SECURITY: Método de ayuda para verificar el rol del usuario autenticado.
+     * @param int $requiredRoleId El ID del rol requerido para la acción.
+     * @return bool True si el usuario tiene el rol requerido, false en caso contrario (y detiene la ejecución).
+     */
+    private function checkUserRole(int $requiredRoleId): bool
+    {
+        $user = AuthMiddleware::getAuthenticatedUser();
+
+        if (is_null($user)) {
+            // Esto no debería ocurrir si AuthMiddleware::handle() se llamó antes,
+            // pero es una salvaguarda.
+            http_response_code(401); // Unauthorized
+            echo json_encode(['status' => 'error', 'message' => 'Acceso denegado. Usuario no autenticado.']);
+            exit();
+        }
+
+        // Asegurarse de que id_rol existe y es numérico para la comparación
+        if (!isset($user['id_rol']) || (int)$user['id_rol'] !== $requiredRoleId) {
+            http_response_code(403); // Forbidden
+            echo json_encode(['status' => 'error', 'message' => 'Acceso denegado. No tienes los permisos necesarios para realizar esta acción.']);
+            exit();
+        }
+
+        return true;
+    }
+
+    // Método para crear un nuevo registro de voluntario
+    // SECURITY: Protegido por autenticación (cualquier usuario logueado puede registrarse)
+    public function createVoluntario(?array $data = null) // Ahora recibe $data como parámetro
+    {
+        // SECURITY: Verificar autenticación
+        AuthMiddleware::handle(); 
+
+        if (is_null($data)) {
+            http_response_code(400); // Bad Request
+            echo json_encode(['status' => 'error', 'message' => 'JSON inválido o ausente en el cuerpo de la petición.']);
+            return;
+        }
+
+        // Validar que los campos obligatorios estén presentes y sean numéricos
+        // Obligatorios: id_usuario, id_actividad
+        if (
+            !isset($data['id_usuario']) || !is_numeric($data['id_usuario']) ||
+            !isset($data['id_actividad']) || !is_numeric($data['id_actividad'])
+        ) {
+            http_response_code(400); // Bad Request
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Faltan datos obligatorios o no son válidos para crear el registro de voluntario (id_usuario, id_actividad deben ser números).'
+            ]);
+            return;
+        }
+
+        // Asignar datos del cuerpo de la solicitud a las propiedades del modelo
+        $this->voluntarioModel->id_usuario = (int) $data['id_usuario'];
+        $this->voluntarioModel->id_actividad = (int) $data['id_actividad'];
+        // Si fecha_registro no se envía, establecerla a la fecha y hora actuales
+        $this->voluntarioModel->fecha_registro = $data['fecha_registro'] ?? date('Y-m-d H:i:s');
+
+
+        try {
+            if ($this->voluntarioModel->create()) {
+                http_response_code(201); // Created
+                echo json_encode([
+                    'status' => 'success',
+                    'message' => 'Registro de voluntario creado exitosamente.'
+                ]);
+            } else {
+                http_response_code(503); // Service Unavailable
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => 'No se pudo crear el registro de voluntario.'
+                ]);
+            }
+        } catch (PDOException $e) {
+            http_response_code(500);
+            // Manejo específico para errores de clave foránea
+            if ($e->getCode() == '23000') { // SQLSTATE para violación de integridad
+                $message = 'Error al crear el registro de voluntario. Asegúrese de que el ID de usuario y el ID de actividad existan.';
+                if (strpos($e->getMessage(), 'Duplicate entry') !== false) {
+                    $message = 'Error al crear el registro de voluntario: Ya existe una participación para este usuario y actividad.';
+                }
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => $message,
+                    'details' => $e->getMessage() // Para depuración, puedes eliminar esto en producción
+                ]);
+            } else {
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => 'Error al crear el registro de voluntario: ' . $e->getMessage()
+                ]);
+            }
+        }
+    }
+
+    // Método para obtener todos los registros de voluntarios
+    // SECURITY: Protegido por rol de Administrador
+    public function getAllVoluntarios()
+    {
+        // SECURITY: Verificar autenticación y autorización
+        AuthMiddleware::handle(); 
+        $this->checkUserRole(1); // Solo Administradores (id_rol = 1)
+
+        try {
+            $stmt = $this->voluntarioModel->getAll();
+            $voluntarios = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            if ($voluntarios) {
+                echo json_encode([
+                    'status' => 'success',
+                    'message' => 'Registros de voluntarios obtenidos exitosamente.',
+                    'data' => $voluntarios
+                ]);
+            } else {
+                echo json_encode([
+                    'status' => 'info',
+                    'message' => 'No se encontraron registros de voluntarios.'
+                ]);
+            }
+        } catch (PDOException $e) {
+            http_response_code(500);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Error al obtener registros de voluntarios: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    // Método para obtener un registro de voluntario por ID
+    // SECURITY: Protegido por rol de Administrador (o el propio usuario que lo creó)
+    public function getVoluntarioById($id)
+    {
+        // SECURITY: Verificar autenticación y autorización
+        AuthMiddleware::handle(); 
+        $user = AuthMiddleware::getAuthenticatedUser(); // Obtener el usuario autenticado
+
+        if (!isset($id) || empty($id)) {
+            http_response_code(400); // Bad Request
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'No se proporcionó el ID de la actividad.'
+            ]);
+            return;
+        }
+
+        try {
+            $voluntarioData = $this->voluntarioModel->getById($id);
+
+            if ($voluntarioData) {
+                // Si el usuario no es administrador, verificar si es el dueño del registro
+                if ((int)$user['id_rol'] !== 1 && (int)$user['id_usuario'] !== (int)$voluntarioData['id_usuario']) {
+                    http_response_code(403); // Forbidden
+                    echo json_encode(['status' => 'error', 'message' => 'Acceso denegado. No tienes permisos para ver este registro de voluntario.']);
+                    return;
+                }
+
+                http_response_code(200); // OK
+                echo json_encode([
+                    'status' => 'success',
+                    'message' => 'Registro de voluntario obtenido exitosamente.',
+                    'data' => $voluntarioData
+                ]);
+            } else {
+                http_response_code(404); // Not Found
+                echo json_encode([
+                    'status' => 'info',
+                    'message' => 'Registro de voluntario no encontrado.'
+                ]);
+            }
+        } catch (PDOException $e) {
+            http_response_code(500);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Error al obtener registro de voluntario: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    // Método para actualizar un registro de voluntario existente
+    // SECURITY: Protegido por rol de Administrador
+    public function updateVoluntario($id, ?array $data = null) // Ahora recibe $data como parámetro
+    {
+        // SECURITY: Verificar autenticación y autorización
+        AuthMiddleware::handle(); 
+        $this->checkUserRole(1); // Solo Administradores (id_rol = 1)
+
+        if (is_null($data)) {
+            http_response_code(400); // Bad Request
+            echo json_encode(['status' => 'error', 'message' => 'JSON inválido o ausente en el cuerpo de la petición.']);
+            return;
+        }
+
+        // Validar que los campos obligatorios para la actualización estén presentes y sean numéricos
+        // id (desde URL), id_usuario, id_actividad (desde body)
+        if (
+            !isset($id) || !is_numeric($id) ||
+            !isset($data['id_usuario']) || !is_numeric($data['id_usuario']) ||
+            !isset($data['id_actividad']) || !is_numeric($data['id_actividad'])
+        ) {
+            http_response_code(400);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Faltan datos obligatorios o no son válidos para actualizar el registro de voluntario (id, id_usuario, id_actividad deben ser números).'
+            ]);
+            return;
+        }
+
+        $this->voluntarioModel->id_voluntario = (int) $id;
+        $this->voluntarioModel->id_usuario = (int) $data['id_usuario'];
+        $this->voluntarioModel->id_actividad = (int) $data['id_actividad'];
+        $this->voluntarioModel->fecha_registro = $data['fecha_registro'] ?? date('Y-m-d H:i:s'); // También actualizar si se omite en PUT
+
+
+        try {
+            if ($this->voluntarioModel->update()) {
+                http_response_code(200); // OK
+                echo json_encode([
+                    'status' => 'success',
+                    'message' => 'Registro de voluntario actualizado exitosamente.'
+                ]);
+            } else {
+                http_response_code(503); // Service Unavailable
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => 'No se pudo actualizar el registro de voluntario. Asegúrese de que el ID exista y los datos sean válidos.'
+                ]);
+            }
+        } catch (PDOException $e) {
+            http_response_code(500);
+            // Manejo específico para errores de clave foránea
+            if ($e->getCode() == '23000') { // SQLSTATE para violación de integridad
+                $message = 'Error al actualizar el registro de voluntario. Asegúrese de que el ID de usuario y el ID de actividad existan.';
+                if (strpos($e->getMessage(), 'Duplicate entry') !== false) {
+                    $message = 'Error al actualizar el registro de voluntario: Ya existe una participación para este usuario y actividad.';
+                }
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => $message,
+                    'details' => $e->getMessage() // Para depuración, puedes eliminar esto en producción
+                ]);
+            } else {
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => 'Error al actualizar el registro de voluntario: ' . $e->getMessage()
+                ]);
+            }
+        }
+    }
+
+    // Método para eliminar un registro de voluntario
+    // SECURITY: Protegido por rol de Administrador
+    public function deleteVoluntario($id)
+    {
+        // SECURITY: Verificar autenticación y autorización
+        AuthMiddleware::handle(); 
+        $this->checkUserRole(1); // Solo Administradores (id_rol = 1)
+
+        if (!isset($id) || !is_numeric($id)) {
+            http_response_code(400);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'No se proporcionó un ID de voluntario válido para eliminar.'
+            ]);
+            return;
+        }
+
+        $this->voluntarioModel->id_voluntario = (int) $id;
+
+        try {
+            if ($this->voluntarioModel->delete()) {
+                http_response_code(200); // OK
+                echo json_encode([
+                    'status' => 'success',
+                    'message' => 'Registro de voluntario eliminado exitosamente.'
+                ]);
+            } else {
+                http_response_code(404); // Not Found
+                echo json_encode([
+                    'status' => 'info',
+                    'message' => 'No se encontró el registro de voluntario para eliminar o ya fue eliminado.'
+                ]);
+            }
+        } catch (PDOException $e) {
+            http_response_code(500);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Error al eliminar el registro de voluntario: ' . $e->getMessage()
+            ]);
+        }
+    }
+}
