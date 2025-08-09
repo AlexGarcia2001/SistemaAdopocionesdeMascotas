@@ -1,0 +1,345 @@
+<!-- public/frontend/templates/dashboard-user.html -->
+
+<div class="row justify-content-center">
+    <div class="col-md-10 col-lg-8">
+        <h2 class="text-center mb-4" data-lang-key="userDashboardTitle">Mi Panel</h2>
+        <div class="alert alert-info text-center" role="alert">
+            <p>Bienvenido, <strong id="userNameDisplay">Usuario</strong>. Aquí puedes ver tus actividades.</p>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-md-6 mb-3">
+                <div class="card p-3 text-center shadow-sm rounded-3 h-100 d-flex flex-column justify-content-center">
+                    <h5 data-lang-key="myAdoptionRequests">Mis Solicitudes de Adopción</h5>
+                    <p class="h3"><span id="adoptionRequestsCount">N/A</span></p>
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="card p-3 text-center shadow-sm rounded-3 h-100 d-flex flex-column justify-content-center">
+                    <h5 data-lang-key="myAdoptedPets">Mis Mascotas Adoptadas</h5>
+                    <p class="h3"><span id="adoptedPetsCount">N/A</span></p>
+                </div>
+            </div>
+        </div>
+
+        <h3 class="mt-5 mb-3" data-lang-key="myActivitiesTitle">Mis Actividades</h3>
+        <div class="list-group">
+            <!-- Botón: Ver mis solicitudes de adopción -->
+            <a href="#" id="viewMyAdoptionRequestsBtn" class="list-group-item list-group-item-action" data-lang-key="myAdoptionRequestsLink">
+                <i class="fas fa-clipboard-list me-2"></i> Ver mis solicitudes de adopción
+            </a>
+            <!-- Botón: Ver mis mascotas adoptadas -->
+            <a href="#" id="viewMyAdoptedPetsBtn" class="list-group-item list-group-item-action" data-lang-key="myAdoptedPetsLink">
+                <i class="fas fa-paw me-2"></i> Ver mis mascotas adoptadas
+            </a>
+            <!-- Botón: Ver Listado de Mascotas -->
+            <a href="#" id="viewPetsListBtnUser" class="list-group-item list-group-item-action" data-lang-key="viewPetsList">
+                <i class="fas fa-list-alt me-2"></i> Ver Listado de Mascotas
+            </a>
+            <!-- Botón: Iniciar Solicitud de Adopción (Color cambiado a neutro) -->
+            <a href="#" id="startAdoptionApplicationBtn" class="list-group-item list-group-item-action" data-lang-key="startAdoptionApplication">
+                <i class="fas fa-paper-plane me-2"></i> Iniciar Solicitud de Adopción
+            </a>
+            <!-- Botón: Mis Notificaciones -->
+            <a href="#" id="viewMyNotificationsBtn" class="list-group-item list-group-item-action">
+                <i class="fas fa-bell me-2"></i> <span data-lang-key="myNotifications">Mis Notificaciones</span>
+                <span class="badge bg-danger rounded-pill ms-2" id="unreadNotificationsBadge" style="display: none;">0</span>
+            </a>
+            <!-- Botón: Ver Refugios en Mapa (Color cambiado a neutro) -->
+            <a href="#" id="viewRefugiosMapBtn" class="list-group-item list-group-item-action" data-lang-key="viewRefugiosMap">
+                <i class="fas fa-map-marker-alt me-2"></i> Ver Refugios en Mapa
+            </a>
+            <!-- Botón: Mis Participaciones en Eventos (Eliminado) -->
+            <!--
+            <a href="#" id="viewMyEventParticipationsBtn" class="list-group-item list-group-item-action" data-lang-key="myParticipations">
+                <i class="fas fa-calendar-check me-2"></i> Mis Participaciones en Eventos
+            </a>
+            -->
+        </div>
+
+        <div class="d-grid gap-2 mt-5">
+            <button id="logoutBtn" class="btn btn-danger btn-lg" data-lang-key="logoutButton">Cerrar Sesión</button>
+        </div>
+    </div>
+</div>
+
+<!-- EL MODAL DE SOLICITUD DE ADOPCIÓN YA NO ESTÁ AQUÍ. AHORA ESTÁ EN public/index.html -->
+
+<script>
+    // Script para dashboard-user.html
+    $(function() {
+        console.log("DEBUG dashboard-user.html: Iniciando carga del script y esperando al DOM.");
+        applyTranslations();
+
+        const userNameDisplay = $('#userNameDisplay');
+        const adoptionRequestsCount = $('#adoptionRequestsCount');
+        const adoptedPetsCount = $('#adoptedPetsCount');
+        const unreadNotificationsBadge = $('#unreadNotificationsBadge');
+        let isSubmittingApplication = false;
+
+        async function loadUserData() {
+            if (typeof window.AuthService === 'undefined' || typeof window.ApiService === 'undefined') {
+                console.error("ERROR dashboard-user.html: AuthService o ApiService no están definidos.");
+                userNameDisplay.text(translations[currentLanguage].defaultUser || 'Usuario');
+                adoptionRequestsCount.text('Error');
+                adoptedPetsCount.text('Error');
+                unreadNotificationsBadge.text('Error').show();
+                return;
+            }
+            
+            const currentUser = window.AuthService.getUserData(); 
+            console.log("DEBUG dashboard-user.html: Datos del usuario actual obtenidos:", currentUser); 
+
+            let displayUserName = translations[currentLanguage].defaultUser || 'Usuario';
+            let userId = null;
+
+            if (currentUser) {
+                if (currentUser.nombre_usuario) { 
+                    displayUserName = currentUser.nombre_usuario;
+                    console.log("DEBUG dashboard-user.html: Usando 'nombre_usuario' para el nombre de exhibición:", displayUserName); 
+                } else if (currentUser.email) { 
+                    displayUserName = currentUser.email;
+                    console.warn("WARN dashboard-user.html: Propiedad 'nombre_usuario' no encontrada, usando 'email' para el nombre de usuario.");
+                } else {
+                    console.warn("WARN dashboard-user.html: No se pudo obtener el nombre de usuario ni el email del usuario logueado. Mostrando 'Usuario'.");
+                }
+                userId = currentUser.id_usuario; 
+            } else {
+                console.warn("WARN dashboard-user.html: No se pudo obtener el usuario logueado desde AuthService.");
+            }
+            
+            userNameDisplay.text(displayUserName);
+            $('#applicationUserId').val(userId); 
+
+            if (!userId) {
+                adoptionRequestsCount.text('N/A');
+                adoptedPetsCount.text('N/A');
+                unreadNotificationsBadge.text('N/A').show();
+                return;
+            }
+
+            try {
+                const [requestsResult, adoptedResult, notificationsResult] = await Promise.allSettled([
+                    window.ApiService.get(`/solicitudes-adopcion/usuario/${userId}`, true),
+                    window.ApiService.get(`/mascotas/adoptadas/usuario/${userId}`, true),
+                    window.ApiService.get(`/notificaciones`, true)
+                ]);
+
+                if (requestsResult.status === 'fulfilled' && (requestsResult.value.status === 'success' || requestsResult.value.status === 'éxito')) {
+                    adoptionRequestsCount.text(requestsResult.value.data ? requestsResult.value.data.length : 0);
+                } else {
+                    adoptionRequestsCount.text('N/A');
+                    console.warn("WARN dashboard-user.html: Fallo al cargar solicitudes de adopción:", requestsResult.reason || (requestsResult.value ? requestsResult.value.message : 'Respuesta de API inesperada.'));
+                }
+
+                if (adoptedResult.status === 'fulfilled' && (adoptedResult.value.status === 'success' || adoptedResult.value.status === 'éxito')) {
+                    adoptedPetsCount.text(adoptedResult.value.data ? adoptedResult.value.data.length : 0);
+                } else {
+                    adoptedPetsCount.text('N/A');
+                    console.warn("WARN dashboard-user.html: Fallo al cargar mascotas adoptadas:", adoptedResult.reason || (adoptedResult.value ? adoptedResult.value.message : 'Respuesta de API inesperada.'));
+                }
+
+                if (notificationsResult.status === 'fulfilled' && (notificationsResult.value.status === 'success' || notificationsResult.value.status === 'éxito')) {
+                    const allNotifications = notificationsResult.value.data || [];
+                    const unreadCount = allNotifications.filter(notif => notif.leida === 0).length;
+                    if (unreadCount > 0) {
+                        unreadNotificationsBadge.text(unreadCount).show();
+                    } else {
+                        unreadNotificationsBadge.hide();
+                    }
+                } else {
+                    unreadNotificationsBadge.text('Error').show();
+                    // LÍNEA CORREGIDA AQUÍ
+                    console.warn("WARN dashboard-user.html: Fallo al cargar notificaciones para el conteo:", notificationsResult.reason || (notificationsResult.value ? notificationsResult.value.message : 'Respuesta de API inesperada.'));
+                }
+
+
+            } catch (error) {
+                console.error("ERROR dashboard-user.html: Fallo al cargar estadísticas (captura general):", error);
+                adoptionRequestsCount.text('Error');
+                adoptedPetsCount.text('Error');
+                unreadNotificationsBadge.text('Error').show();
+                Swal.fire({
+                    icon: 'error',
+                    title: translations[currentLanguage].generalError,
+                    text: translations[currentLanguage].errorLoadingUserData || 'Error al cargar estadísticas del usuario.'
+                });
+            }
+        }
+
+        window.updateUnreadNotificationsCount = async function() {
+            const currentUser = window.AuthService.getUserData();
+            if (!currentUser || !currentUser.id_usuario) {
+                unreadNotificationsBadge.hide();
+                return;
+            }
+            try {
+                const response = await window.ApiService.get(`/notificaciones`, true);
+                if (response.status === 'success' || response.status === 'éxito') {
+                    const allNotifications = response.data || [];
+                    const unreadCount = allNotifications.filter(notif => notif.leida === 0).length;
+                    if (unreadCount > 0) {
+                        unreadNotificationsBadge.text(unreadCount).show();
+                    } else {
+                        unreadNotificationsBadge.hide();
+                    }
+                } else {
+                    unreadNotificationsBadge.text('Error').show();
+                    console.warn("WARN dashboard-user.html: Fallo al recargar notificaciones para el conteo:", response.message || 'Respuesta de API inesperada.');
+                }
+            } catch (error) {
+                unreadNotificationsBadge.text('Error').show();
+                console.error("ERROR dashboard-user.html: Fallo al recargar notificaciones para el conteo (captura general):", error);
+            }
+        };
+
+
+        // --- Llamada Inicial ---
+        loadUserData();
+
+        // --- Event Listeners con Namespaces ---
+
+        $(document).on('click.userDashboard', '#logoutBtn', function() {
+            console.log("DEBUG dashboard-user.html: Clic en botón 'Cerrar Sesión'.");
+            if (typeof window.AuthService !== 'undefined') {
+                window.AuthService.logoutUser();
+            } else {
+                console.error("ERROR dashboard-user.html: AuthService no está definido al intentar cerrar sesión.");
+                Swal.fire({
+                    icon: 'error',
+                    title: translations[currentLanguage].generalError,
+                    text: translations[currentLanguage].logoutError || 'No se pudo cerrar la sesión. Recarga la página.'
+                });
+            }
+        });
+
+        $(document).on('click.userDashboard', '#viewPetsListBtnUser', function(e) {
+            e.preventDefault();
+            console.log("DEBUG dashboard-user.html: Clic en 'Ver Listado de Mascotas'.");
+            window.loadComponent('pets-user'); 
+        });
+
+        // Este manejador ahora solo abre el modal global y resetea el formulario
+        $(document).on('click.userDashboard', '#startAdoptionApplicationBtn', function(e) {
+            e.preventDefault();
+            console.log("DEBUG dashboard-user.html: Clic en 'Iniciar Solicitud de Adopción' (General).");
+            $('#adoptionApplicationForm')[0].reset(); 
+            $('#applicationPetId').val(''); // Asegurarse de que no haya ID de mascota precargado
+            $('#adoptionApplicationModal').modal('show');
+            applyTranslations(); // Volver a aplicar traducciones al modal
+        });
+
+        $(document).on('click.userDashboard', '#viewMyNotificationsBtn', function(e) {
+            e.preventDefault();
+            console.log("DEBUG dashboard-user.html: Clic en 'Mis Notificaciones'.");
+            window.loadComponent('my-notifications');
+        });
+
+        $(document).on('click.userDashboard', '#viewMyAdoptionRequestsBtn', function(e) {
+            e.preventDefault();
+            console.log("DEBUG dashboard-user.html: Clic en 'Ver mis solicitudes de adopción'.");
+            window.loadComponent('my-adoption-requests'); // Cargar el nuevo componente
+        });
+
+        $(document).on('click.userDashboard', '#viewRefugiosMapBtn', function(e) {
+            e.preventDefault();
+            console.log("DEBUG dashboard-user.html: Clic en 'Ver Refugios en Mapa'.");
+            window.loadComponent('refugios-map'); // Carga el nuevo componente del mapa
+        });
+
+        $(document).on('click.userDashboard', '#viewMyAdoptedPetsBtn', function(e) {
+            e.preventDefault();
+            console.log("DEBUG dashboard-user.html: Clic en 'Ver mis mascotas adoptadas'.");
+            window.loadComponent('my-adopted-pets'); // Cargar el nuevo componente
+        });
+
+        // El manejador de click para "Mis Participaciones en Eventos" ha sido eliminado
+        // $(document).on('click.userDashboard', '#viewMyEventParticipationsBtn', function(e) {
+        //     e.preventDefault();
+        //     console.log("DEBUG dashboard-user.html: Clic en 'Mis Participaciones en Eventos'.");
+        //     window.loadComponent('my-event-participations'); // Cargar el nuevo componente
+        // });
+
+        const $adoptionApplicationForm = $('#adoptionApplicationForm');
+        // El manejador de submit del formulario de adopción permanece aquí, ya que el formulario es global
+        $adoptionApplicationForm.off('submit.userDashboard').on('submit.userDashboard', async function(e) {
+            e.preventDefault();
+
+            if (isSubmittingApplication) {
+                console.warn("DEBUG dashboard-user.html: Intento de doble submit de solicitud de adopción detectado y prevenido.");
+                return;
+            }
+            isSubmittingApplication = true;
+
+            console.log("DEBUG dashboard-user.html: Enviando formulario de solicitud de adopción.");
+
+            // --- DATOS SIMPLIFICADOS PARA LA API (AHORA USANDO 'motivo') ---
+            const applicationData = {
+                id_usuario: $('#applicationUserId').val(),
+                id_mascota: $('#applicationPetId').val() || null, // Puede ser null si es una solicitud general
+                fecha_solicitud: new Date().toISOString().slice(0, 10), 
+                estado_solicitud: 'Pendiente', 
+                // ¡CAMBIO CLAVE AQUÍ! Usamos 'motivo' para el campo de texto
+                motivo: $('#applicationMotivation').val() 
+            };
+
+            // --- VALIDACIÓN SIMPLIFICADA ---
+            if (!applicationData.motivo) { // Validamos 'motivo'
+                Swal.fire({
+                    icon: 'warning',
+                    title: translations[currentLanguage].validationErrorTitle || 'Error de Validación',
+                    text: translations[currentLanguage].motivationRequired || 'Por favor, describe el motivo de tu solicitud.'
+                });
+                isSubmittingApplication = false;
+                return;
+            }
+
+            try {
+                console.log("DEBUG dashboard-user.html: Datos a enviar para solicitud de adopción (simplificados, con 'motivo'):", applicationData);
+                const response = await window.ApiService.post('/solicitudes-adopcion', applicationData, true);
+                console.log("DEBUG dashboard-user.html: Respuesta de la API para solicitud de adopción:", response);
+
+                if (response.status === 'success' || response.status === 'éxito') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: translations[currentLanguage].applicationSuccessTitle || 'Solicitud Enviada',
+                        text: response.message || translations[currentLanguage].applicationSuccessText || 'Tu solicitud de adopción ha sido enviada exitosamente.'
+                    });
+                    $('#adoptionApplicationModal').modal('hide'); 
+                    loadUserData(); // Recargar los datos del dashboard para actualizar el contador
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: translations[currentLanguage].generalError,
+                        text: response.message || translations[currentLanguage].applicationErrorText || 'Error al enviar la solicitud de adopción.'
+                    });
+                }
+            } catch (error) {
+                console.error("ERROR dashboard-user.html: Fallo al enviar solicitud de adopción:", error);
+                let errorMessage = translations[currentLanguage].communicationError || 'Error de comunicación con el servidor.';
+                if (error.responseJSON && error.responseJSON.message) { errorMessage = error.responseJSON.message; } 
+                else if (error.statusText) { errorMessage = `${translations[currentLanguage].networkError || 'Error de red'}: ${error.statusText} (Código: ${error.status || 'N/A'})`; } 
+                else if (error.message) { errorMessage = `${translations[currentLanguage].jsError || 'Error JavaScript'}: ${error.message}`; }
+                Swal.fire({
+                    icon: 'error',
+                    title: translations[currentLanguage].generalError,
+                    text: errorMessage
+                });
+            } finally {
+                isSubmittingApplication = false; 
+            }
+        });
+
+        $(document).on('componentUnloaded.userDashboardCleanup', function(event, unloadedComponentName) {
+            if (unloadedComponentName === 'dashboard-user') {
+                console.log("DEBUG dashboard-user.html: ¡componentUnloaded para dashboard-user detectado! Limpiando listeners.");
+                $(document).off('.userDashboard'); 
+                $(document).off('componentUnloaded.userDashboardCleanup'); 
+                if (window.updateUnreadNotificationsCount) {
+                    delete window.updateUnreadNotificationsCount;
+                }
+                console.log("DEBUG dashboard-user.html: Event listeners de dashboard-user limpiados.");
+            }
+        });
+    }); 
+</script>
